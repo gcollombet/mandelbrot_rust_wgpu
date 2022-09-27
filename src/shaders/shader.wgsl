@@ -96,6 +96,21 @@ fn colorize(coordinate: vec2<f32>, iterations: f32) -> vec4<f32> {
     return vec4<f32>(color, 1.0);
 }
 
+// a function to find the nearest orbit trap point in the mandelbrot set
+// it take a point and return a point
+fn findOrbitTrap(dot: vec2<f32>) -> vec2<f32> {
+    var z = dot;
+    var c = dot;
+    var i = 0;
+    while (length(z) < 8192. && i < 512) {
+        z = vpow2(z) + c;
+        i++;
+    }
+    return z;
+}
+
+
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var color: vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 1.0);
@@ -112,9 +127,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             in.coord.x + mandelbrot.seed,
             in.coord.y + mandelbrot.seed
         );
-        var fractalCoord = vec2(-1.1900443,0.3043895);
-        var coord_x : f32 = mandelbrot.x;
-        var coord_y : f32= mandelbrot.y;
+        var fractalCoord = vec2(-1.41421356237309504880,0.0);
+        var coord_x : f32 = fractalCoord.x;
+        var coord_y : f32= fractalCoord.y;
         // create c from the x and y coordinates and by using the zoom with a constant heith / width ration, and the x and y coordinates of the mandelbrot set
         var c = vec2<f32>(coord_x, coord_y);
         var dc = vec2<f32>(
