@@ -1,4 +1,6 @@
+use std::borrow::Borrow;
 use std::fmt::Debug;
+use std::ops::Deref;
 use std::time::{Duration, Instant};
 use wgpu::util::DeviceExt;
 use winit::{
@@ -14,7 +16,7 @@ use winit::window::Window;
 #[repr(C)]
 // This is so we can store this in a buffer
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-struct MandelbrotShader {
+struct Mandelbrot {
     seed: f32,
     zoom: f32,
     x: f32,
@@ -26,7 +28,7 @@ struct MandelbrotShader {
     is_rendered: u32
 }
 
-impl Default for MandelbrotShader {
+impl Default for Mandelbrot {
     fn default() -> Self {
         Self {
             seed: 0.0,
@@ -42,14 +44,79 @@ impl Default for MandelbrotShader {
     }
 }
 
+impl Mandelbrot {
+
+    // a function that zoom in the mandelbrot set by a given factor.
+    // the function take as parameters :
+    // - the zoom factor
+    // - the x and y coordinates of the mouse
+    // - the width and height of the window
+    // The function compute the normalized vector of the mouse position relatively to the window center in a variable called "normalized_mouse_vector"
+    // Then it multiply the mouse_vector by the zoom factor in a new variable called "scaled_mouse_vector"
+    // Then it add the "scaled_mouse_vector" to the current x and y coordinates of the mandelbrot set
+    // Then it multiply the "scaled_mouse_vector" by the zoom factor in a new variable called "zoomed_scaled_mouse_vector"
+    // Then it add the "zoomed_scaled_mouse_vector" times -1 to the current x and y coordinates of the mandelbrot set
+    pub fn zoom_in(&mut self, zoom_factor: f32, mouse_x: f32, mouse_y: f32, window_width: u32, window_height: u32) {
+        let normalized_mouse_vector = (
+            (mouse_x - (window_width as f32 / 2.0)) / (window_width as f32 / 2.0),
+            (mouse_y - (window_height as f32 / 2.0)) / (window_height as f32 / 2.0)
+        );
+        let scaled_mouse_vector = (
+            normalized_mouse_vector.0 * self.zoom,
+            normalized_mouse_vector.1 * self.zoom
+        );
+        self.x += scaled_mouse_vector.0;
+        self.y -= scaled_mouse_vector.1;
+        let zoomed_scaled_mouse_vector = (
+            scaled_mouse_vector.0 * zoom_factor,
+            scaled_mouse_vector.1 * zoom_factor
+        );
+        self.x -= zoomed_scaled_mouse_vector.0;
+        self.y += zoomed_scaled_mouse_vector.1;
+        self.zoom *= zoom_factor;
+        self.is_rendered = 0;
+    }
+
+}
+
 // implement new for MandelbrotShader, without zoom, x, y, mu
-impl MandelbrotShader {
+impl Mandelbrot {
     fn new(maximum_iterations: u32, width: u32, height: u32) -> Self {
         Self {
             maximum_iterations,
             width,
             height,
             ..Default::default()
+        }
+    }
+}
+
+// A struct called BindedBuffer with a buffer, a bind group, and a bind group layout
+struct BindedBuffer {
+    buffer: wgpu::Buffer,
+    bind_group: wgpu::BindGroup,
+    bind_group_layout: wgpu::BindGroupLayout,
+}
+
+// implement new for BindedBuffer
+impl BindedBuffer {
+    fn new(
+        device: &wgpu::Device,
+        buffer: wgpu::Buffer,
+        bind_group_layout: wgpu::BindGroupLayout
+    ) -> Self {
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::Buffer(buffer.as_entire_buffer_binding()),
+            }],
+            label: None,
+        });
+        Self {
+            buffer,
+            bind_group,
+            bind_group_layout,
         }
     }
 }
@@ -64,10 +131,10 @@ struct Game {
     vertex_buffer: wgpu::Buffer,
     num_vertices: u32,
     // add the mandelbrot shader
-    mandelbrot_shader: MandelbrotShader,
+    mandelbrot: Mandelbrot,
     // add the mandelbrot shader buffer and bind group
-    mandelbrot_shader_buffer: wgpu::Buffer,
-    mandelbrot_shader_bind_group: wgpu::BindGroup,
+    mandelbrot_uniform_buffer: wgpu::Buffer,
+    mandelbrot_uniform_bind_group: wgpu::BindGroup,
     // add the mandelbrot texture and bind group
     mandelbrot_texture_buffer: wgpu::Buffer,
     mandelbrot_texture_bind_group: wgpu::BindGroup,
@@ -174,7 +241,7 @@ impl Game {
             }
         );
         // windows height and width
-        let mandelbrot_shader = MandelbrotShader::new(1000, size.width, size.height );
+        let mandelbrot_shader = Mandelbrot::new(1000, size.width, size.height );
         let mandelbrot_shader_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Mandelbrot Buffer"),
@@ -322,9 +389,9 @@ impl Game {
             render_pipeline,
             vertex_buffer,
             num_vertices,
-            mandelbrot_shader,
-            mandelbrot_shader_buffer,
-            mandelbrot_shader_bind_group,
+            mandelbrot: mandelbrot_shader,
+            mandelbrot_uniform_buffer: mandelbrot_shader_buffer,
+            mandelbrot_uniform_bind_group: mandelbrot_shader_bind_group,
             mandelbrot_texture_buffer,
             mandelbrot_texture_bind_group,
             last_screen_update: Instant::now(),
@@ -381,10 +448,9 @@ impl Game {
                     ],
                 }
             );
-            self.mandelbrot_shader.height = self.size.height;
-            self.mandelbrot_shader.width = self.size.width;
-            self.mandelbrot_shader.is_rendered = 0;
-            self.mandelbrot_shader.seed = 0.0;
+            self.mandelbrot.height = self.size.height;
+            self.mandelbrot.width = self.size.width;
+            self.mandelbrot.is_rendered = 0;
         }
     }
 
@@ -394,12 +460,12 @@ impl Game {
 
     fn update(&mut self) {
         // add one to the mandelbrot seed
-        self.mandelbrot_shader.seed += 1.0;
+        self.mandelbrot.seed += 1.0;
         // update the mandelbrot shader buffer
         self.queue.write_buffer(
-            &self.mandelbrot_shader_buffer,
+            &self.mandelbrot_uniform_buffer,
             0,
-            bytemuck::cast_slice(&[self.mandelbrot_shader]),
+            bytemuck::cast_slice(&[self.mandelbrot]),
         );
     }
 
@@ -430,7 +496,7 @@ impl Game {
                 depth_stencil_attachment: None,
             });
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0, &self.mandelbrot_shader_bind_group, &[]);
+            render_pass.set_bind_group(0, &self.mandelbrot_uniform_bind_group, &[]);
             render_pass.set_bind_group(1, &self.mandelbrot_texture_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.draw(0..self.num_vertices, 0..1);
@@ -440,8 +506,8 @@ impl Game {
         // submit will accept anything that implements IntoIter
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
-        if self.mandelbrot_shader.is_rendered == 0 {
-            self.mandelbrot_shader.is_rendered = 1;
+        if self.mandelbrot.is_rendered == 0 {
+            self.mandelbrot.is_rendered = 1;
         }
         Ok(())
     }
@@ -490,7 +556,7 @@ pub async fn run() {
             // request a redraw
             window.request_redraw();
             // print new frame to the console with the time since the last screen update and the total count of frames rendered so far
-            println!("New frame: {}ms since last frame, {} frames rendered so far", time_since_last_screen_update.as_millis(), state.mandelbrot_shader.seed);
+            println!("New frame: {}ms since last frame, {} frames rendered so far", time_since_last_screen_update.as_millis(), state.mandelbrot.seed);
         }
         Event::WindowEvent {
             ref event,
@@ -509,37 +575,45 @@ pub async fn run() {
                 state.mouse_position.0 = position.x as f32;
                 state.mouse_position.1 = position.y as f32;
             }
+            // When the arrow keys are pressed or zqsd keys, update the mandelbrot shader coordinates.
+            WindowEvent::KeyboardInput { input, .. } => {
+                // detect if keyboard is in french or english
+                if let Some(keycode) = input.virtual_keycode {
+                    let movement = 0.1 * state.mandelbrot.zoom;
+                    match keycode {
+                        // group similar keys together
+                        VirtualKeyCode::Left | VirtualKeyCode::Q => {
+                            state.mandelbrot.x -= movement;
+                        }
+                        VirtualKeyCode::Right | VirtualKeyCode::D => {
+                            state.mandelbrot.x += movement;
+                        }
+                        VirtualKeyCode::Up | VirtualKeyCode::Z => {
+                            state.mandelbrot.y += movement;
+                        }
+                        VirtualKeyCode::Down | VirtualKeyCode::S => {
+                            state.mandelbrot.y -= movement;
+                        }
+                        _ => {}
+                    }
+                    state.mandelbrot.is_rendered = 0;
+                }
+            }
             // when the mouse scrolls, update the mandelbrot shader zoom by a magnitude of 1.1 or 0.9 depending on the direction of the scroll wheel.
             WindowEvent::MouseWheel { delta, .. } => {
                 match delta {
-
                     MouseScrollDelta::LineDelta(_, y) => {
-                        // if the scroll wheel is scrolled up
+                        let mut zoom_factor = 1.1;
                         if *y > 0.0 {
-                            state.mandelbrot_shader.zoom *= 0.9;
-                        } else { // if the scroll wheel is scrolled down
-                            state.mandelbrot_shader.zoom *= 1.1;
+                            zoom_factor = 0.9;
                         }
-                        // calculate the difference between the mouse position and the center of the screen
-                        let mouse_position_difference = (
-                            state.mouse_position.0 - state.size.width as f32 / 2.0,
-                            state.mouse_position.1 - state.size.height as f32 / 2.0,
+                        state.mandelbrot.zoom_in(
+                            zoom_factor,
+                            state.mouse_position.0,
+                            state.mouse_position.1,
+                            state.size.width,
+                            state.size.height
                         );
-                        // normalize the mouse position difference
-                        let mouse_position_difference_normalized = (
-                            mouse_position_difference.0 / state.size.width as f32,
-                            mouse_position_difference.1 / state.size.height as f32,
-                        );
-                        // calculate the new mandelbrot shader coordinates
-                        let new_mandelbrot_shader_coordinates = (
-                            mouse_position_difference_normalized.0 * state.mandelbrot_shader.zoom,
-                            mouse_position_difference_normalized.1 * state.mandelbrot_shader.zoom,
-                        );
-                        // update the mandelbrot shader coordinates
-                        state.mandelbrot_shader.x += new_mandelbrot_shader_coordinates.0;
-                        state.mandelbrot_shader.y -= new_mandelbrot_shader_coordinates.1;
-
-                        state.mandelbrot_shader.is_rendered = 0;
                     }
                     MouseScrollDelta::PixelDelta(_) => {}
                 }

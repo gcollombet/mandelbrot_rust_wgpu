@@ -69,7 +69,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
         // create c from the x and y coordinates and by using the zoom with a constant heith / width ration, and the x and y coordinates of the mandelbrot set
         var c = vec2<f32>(
-            in.coord.x * mandelbrot.zoom * f32(mandelbrot.width) / f32(mandelbrot.height) + mandelbrot.x,
+            in.coord.x * mandelbrot.zoom * f32(mandelbrot.width) / f32(mandelbrot.height) + mandelbrot.x * f32(mandelbrot.width) / f32(mandelbrot.height)  ,
             in.coord.y * mandelbrot.zoom + mandelbrot.y
         );
         var z = vec2<f32>(0.0, 0.0);
@@ -77,12 +77,17 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         var dz = vec2<f32>(1.0, 0.0);
         var i = 0.0;
         var max = mandelbrot.mu;
+
+
+
         while (i < iteration && z.x * z.x + z.y * z.y < max) {
             z = vec2<f32>(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;
-            // calculate the derivative
-//            dz = vec2<f32>(2.0 * z.x * dz.x - 2.0 * z.y * dz.y, 2.0 * z.x * dz.y + 2.0 * z.y * dz.x);
+            dz = vec2<f32>(2.0 * z.x * dz.x - 2.0 * z.y * dz.y, 2.0 * z.x * dz.y + 2.0 * z.y * dz.x);
             i = i + 1.0;
         }
+
+
+
 
         // calculate the derivative of the function and use it to calculate the normal
 //        var dz = vec2<f32>(2.0 * z.x, 2.0 * z.y);
