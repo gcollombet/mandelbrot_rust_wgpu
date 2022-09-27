@@ -241,7 +241,7 @@ impl Game {
             }
         );
         // windows height and width
-        let mandelbrot_shader = Mandelbrot::new(1000, size.width, size.height );
+        let mandelbrot_shader = Mandelbrot::new(10000, size.width, size.height );
         let mandelbrot_shader_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Mandelbrot Buffer"),

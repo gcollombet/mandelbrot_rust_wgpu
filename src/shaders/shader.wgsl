@@ -44,6 +44,43 @@ fn vs_main(
 
 // Fragment shader
 
+
+fn vpow2(v: vec2<f32>) -> vec2<f32> {
+     return vec2(v.x * v.x - v.y * v.y, 2. * v.x * v.y);
+}
+
+fn rv( v: vec2<f32>, r: f32) -> vec2<f32> {
+    var a: f32 = atan2(v.y, v.x);
+    a += r;
+    return vec2(cos(a), sin(a)) * length(v);
+}
+
+fn itr(c: vec2<f32>,  z: vec2<f32>) -> f32{
+    var i = 0;
+    var z = z;
+    while (length(z) < 8192. && i < 512) {
+        z = vpow2(z) + c;
+        i++;
+    }
+    return f32(i) + 1. - log(log(length(z))) / log(2.);
+}
+
+
+
+fn fcol(it: f32) -> vec3<f32> {
+    if(it < 512.){
+        return vec3(.5 + .5 * sin(it / 32.), .5 + .5 * sin(it / 48.), .5 + .5 * sin(it / 64.));
+    }
+    else{
+        return vec3(0., 0., 0.);
+    }
+}
+
+// cmul is a complex multiplication
+fn cmul(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
+    return vec2<f32>(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var color: vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 1.0);
@@ -66,41 +103,33 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             in.coord.y + mandelbrot.seed
         );
         var r = fract(sin(dot(seed, vec2<f32>(12.9898, 78.233))) * 43758.5453);
+        var fractalCoord = vec2(-1.1900443,0.3043895);
+        var coord_x : f32 = mandelbrot.x;
+        var coord_y : f32= mandelbrot.y;
 
         // create c from the x and y coordinates and by using the zoom with a constant heith / width ration, and the x and y coordinates of the mandelbrot set
-        var c = vec2<f32>(
-            in.coord.x * mandelbrot.zoom * f32(mandelbrot.width) / f32(mandelbrot.height) + mandelbrot.x * f32(mandelbrot.width) / f32(mandelbrot.height)  ,
-            in.coord.y * mandelbrot.zoom + mandelbrot.y
+        var c = vec2<f32>(coord_x, coord_y);
+        var dc = vec2<f32>(
+            in.coord.x * mandelbrot.zoom * f32(mandelbrot.width) / f32(mandelbrot.height) ,
+            in.coord.y * mandelbrot.zoom
         );
         var z = vec2<f32>(0.0, 0.0);
-        // a var for the derivative
-        var dz = vec2<f32>(1.0, 0.0);
+        var dz = vec2<f32>(0.0, 0.0);
         var i = 0.0;
+        var i2 = 0.0;
         var max = mandelbrot.mu;
 
-
-
-        while (i < iteration && z.x * z.x + z.y * z.y < max) {
-            z = vec2<f32>(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;
-            dz = vec2<f32>(2.0 * z.x * dz.x - 2.0 * z.y * dz.y, 2.0 * z.x * dz.y + 2.0 * z.y * dz.x);
-            i = i + 1.0;
+        // calculate the iteration
+        while (dot(dz, dz) < max && i < iteration) {
+            dz = cmul(2.0 * z + dz,dz) + dc;
+            z = vpow2(z) + c;
+            i += 1.0;
         }
-
-
-
-
-        // calculate the derivative of the function and use it to calculate the normal
-//        var dz = vec2<f32>(2.0 * z.x, 2.0 * z.y);
-//        var normal = vec2<f32>(-dz.y, dz.x) / length(dz);
-//        var light = vec2<f32>(0.85, 0.85);
-//        var intensity = dot(normal, light) ;
-        // create a random number between 0 and 1
-        // add the rest to i to get a smooth color gradient
-        i = i + 1.0 - log2(log2(z.x * z.x + z.y * z.y)) ;
+//        // add the rest to i to get a smooth color gradient
+        i = i + 1.0 - log2(log2(dz.x * dz.x + dz.y * dz.y)) ;
         // normalize i to get a value between 0 and 1
         i = i / iteration;
         // calculate the iteration with the intensity
-//        i = i + intensity;
         mandelbrotTexture[ pixel.y * mandelbrot.width + pixel.x ] = i;
     }
     i = mandelbrotTexture[ pixel.y * mandelbrot.width + pixel.x ];
@@ -130,4 +159,3 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     }
     return vec4<f32>(color, 1.0);
 }
-
