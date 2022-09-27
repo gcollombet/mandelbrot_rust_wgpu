@@ -83,7 +83,7 @@ fn cmul(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
 
 // create a function that colorize a pixel based on the number of iterations has seen below
 fn colorize(coordinate: vec2<f32>, iterations: f32) -> vec4<f32> {
-    var cycle = f32(mandelbrot.maximum_iterations) / 10.0;
+    var cycle = 2000.0;
     var color = vec3<f32>(0.0,0.0,0.0);
     if(iterations < f32(mandelbrot.maximum_iterations)) {
         var t = (iterations * cycle % cycle) ;
@@ -127,7 +127,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             in.coord.x + mandelbrot.seed,
             in.coord.y + mandelbrot.seed
         );
-        var fractalCoord = vec2(-1.41421356237309504880,0.0);
+//        var fractalCoord = vec2(-0.7978966809395276,0.17955438482264596);
+        var fractalCoord = vec2(-0.797896687,0.1795543821);
         var coord_x : f32 = fractalCoord.x;
         var coord_y : f32= fractalCoord.y;
         // create c from the x and y coordinates and by using the zoom with a constant heith / width ration, and the x and y coordinates of the mandelbrot set
