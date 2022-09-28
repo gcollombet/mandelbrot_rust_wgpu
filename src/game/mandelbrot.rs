@@ -12,25 +12,48 @@ pub struct Mandelbrot {
     pub height: u32,
     pub mu: f32,
     pub is_rendered: u32,
+    pub color_palette_scale: u32,
 }
 
+// x: -0.81448036, y: 0.18333414,
+// x: -0.7955818, y: -0.17171985,
+// x: -0.8156346, y: 0.18634154,
+// x: -0.80087984, y: 0.1822858
 impl Default for Mandelbrot {
     fn default() -> Self {
         Self {
             seed: 0.0,
             zoom: 100.0,
-            x: 0.0,
-            y: 0.0,
+            x: -0.80087984, y: 0.1822858,
             maximum_iterations: 10000,
             width: 0,
             height: 0,
             mu: 10000.0,
             is_rendered: 0,
+            color_palette_scale: 100,
         }
     }
 }
 
 impl Mandelbrot {
+
+    pub fn center_at(&mut self, mouse_x: f32, mouse_y: f32, window_width: u32, window_height: u32) {
+        let normalized_mouse_vector = (
+            (mouse_x - (window_width as f32 / 2.0)) / (window_width as f32 / 2.0),
+            (mouse_y - (window_height as f32 / 2.0)) / (window_height as f32 / 2.0) * -1.0,
+        );
+        self.x += normalized_mouse_vector.0 * self.zoom * (self.width as f32 / self.height as f32);
+        self.y += normalized_mouse_vector.1 * self.zoom;
+        self.is_rendered = 0;
+        // print to console the coordinates
+        println!("x: {}, y: {}, zoom: {}", self.x, self.y, self.zoom);
+    }
+
+    pub fn zoom_in(&mut self, zoom_factor: f32) {
+        self.zoom *= zoom_factor;
+        self.is_rendered = 0;
+    }
+
     // a function that zoom in the mandelbrot set by a given factor.
     // the function take as parameters :
     // - the zoom factor
@@ -41,7 +64,7 @@ impl Mandelbrot {
     // Then it add the "scaled_mouse_vector" to the current x and y coordinates of the mandelbrot set
     // Then it multiply the "scaled_mouse_vector" by the zoom factor in a new variable called "zoomed_scaled_mouse_vector"
     // Then it add the "zoomed_scaled_mouse_vector" times -1 to the current x and y coordinates of the mandelbrot set
-    pub fn zoom_in(&mut self, zoom_factor: f32, mouse_x: f32, mouse_y: f32, window_width: u32, window_height: u32) {
+    pub fn zoom_at(&mut self, zoom_factor: f32, mouse_x: f32, mouse_y: f32, window_width: u32, window_height: u32) {
         let normalized_mouse_vector = (
             (mouse_x - (window_width as f32 / 2.0)) / (window_width as f32 / 2.0),
             (mouse_y - (window_height as f32 / 2.0)) / (window_height as f32 / 2.0)

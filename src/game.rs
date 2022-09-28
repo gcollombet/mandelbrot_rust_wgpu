@@ -43,6 +43,7 @@ struct Game {
     mouse_position: (f32, f32),
     is_fullscreen: bool,
     zoom_speed: f32,
+    mouse_left_button_pressed: bool,
 }
 
 impl Game {
@@ -51,6 +52,7 @@ impl Game {
         let size = window.inner_size();
         // The instance is a handle to our GPU
         // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
+        let mandelbrot = Mandelbrot::new(100000, size.width, size.height);
         let instance = wgpu::Instance::new(wgpu::Backends::all());
         let surface = unsafe { instance.create_surface(window) };
         let adapter = instance.request_adapter(
@@ -89,7 +91,7 @@ impl Game {
         surface.configure(&device, &config);
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shaders/shader.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shaders/mandelbrot.wgsl").into()),
         });
         let vertex_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
@@ -99,11 +101,10 @@ impl Game {
             }
         );
         // windows height and width
-        let mandelbrot_shader = Mandelbrot::new(2000, size.width, size.height);
         let mandelbrot_shader_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Mandelbrot Buffer"),
-                contents: bytemuck::cast_slice(&[mandelbrot_shader]),
+                contents: bytemuck::cast_slice(&[mandelbrot]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             }
         );
@@ -247,7 +248,7 @@ impl Game {
             render_pipeline,
             vertex_buffer,
             num_vertices,
-            mandelbrot: mandelbrot_shader,
+            mandelbrot,
             mandelbrot_uniform_buffer: mandelbrot_shader_buffer,
             mandelbrot_uniform_bind_group: mandelbrot_shader_bind_group,
             mandelbrot_texture_buffer,
@@ -255,7 +256,8 @@ impl Game {
             last_screen_update: Instant::now(),
             mouse_position: (0.0, 0.0),
             is_fullscreen: false,
-            zoom_speed: 0.999,
+            zoom_speed: 0.995,
+            mouse_left_button_pressed: false,
         }
     }
 
@@ -328,7 +330,7 @@ impl Game {
         }
         let last_max_iterations = self.mandelbrot.maximum_iterations;
         // mandelbrot max iterations is log_10 of the inverse of the zoom
-        self.mandelbrot.maximum_iterations = (1.0 + (1.0 / self.mandelbrot.zoom).log2().clamp(0.0, 100.0)) as u32 * 40 + 1000;
+        self.mandelbrot.maximum_iterations = (1.0 + (1.0 / self.mandelbrot.zoom).log2().clamp(0.0, 100.0)) as u32 * 50 + 100;
         // print max iterations to the console if it has changed
         if self.mandelbrot.maximum_iterations != last_max_iterations {
             println!("max iterations: {}", self.mandelbrot.maximum_iterations);
@@ -408,7 +410,7 @@ pub async fn run() {
         }
         Event::MainEventsCleared => {
             // this is the time between screen updates
-            let time_between_screen_updates = Duration::from_millis(1000 / 144);
+            let time_between_screen_updates = Duration::from_millis(1000 / 60);
             // this is the time between the last screen update and now
             let time_since_last_screen_update = Instant::now() - state.last_screen_update;
             // this is the time until the next screen update
@@ -458,6 +460,30 @@ pub async fn run() {
                     window.set_fullscreen(None);
                 }
             }
+            // when the key page up is pressed
+            WindowEvent::KeyboardInput {
+                input:
+                KeyboardInput {
+                    virtual_keycode: Some(VirtualKeyCode::PageUp),
+                    state: ElementState::Pressed,
+                    ..
+                },
+                ..
+            } => {
+                state.mandelbrot.color_palette_scale = 1 + (state.mandelbrot.color_palette_scale as f32 * 1.1) as u32;
+            }
+            // when the key page down is pressed
+            WindowEvent::KeyboardInput {
+                input:
+                KeyboardInput {
+                    virtual_keycode: Some(VirtualKeyCode::PageDown),
+                    state: ElementState::Pressed,
+                    ..
+                },
+                ..
+            } => {
+                state.mandelbrot.color_palette_scale = 1 + (state.mandelbrot.color_palette_scale as f32 / 1.1) as u32;
+            }
             // when the + key is pressed increase the the zoom speed by 1.1
             WindowEvent::KeyboardInput {
                 input:
@@ -504,7 +530,7 @@ pub async fn run() {
                 },
                 ..
             } => {
-                state.zoom_speed = 1.0;
+                state.mandelbrot.reset();
             }
             // when the space bar is pressed
             WindowEvent::KeyboardInput {
@@ -517,12 +543,22 @@ pub async fn run() {
                 ..
             } => {
                 // reset the mandelbrot
-                state.mandelbrot.reset();
+                state.zoom_speed = 1.0;
             }
             // update the mandelbrot shader coordinates when the mouse is moved.
             WindowEvent::CursorMoved { position, .. } => {
                 state.mouse_position.0 = position.x as f32;
                 state.mouse_position.1 = position.y as f32;
+                // if the left mouse button is pressed
+                if state.mouse_left_button_pressed {
+                    // update the mandelbrot shader coordinates
+                    state.mandelbrot.center_at(
+                        state.mouse_position.0,
+                        state.mouse_position.1,
+                        state.size.width,
+                        state.size.height,
+                    );
+                }
             }
             // When the arrow keys are pressed or zqsd keys, update the mandelbrot shader coordinates.
             WindowEvent::KeyboardInput { input, .. } => {
@@ -548,6 +584,29 @@ pub async fn run() {
                     state.mandelbrot.is_rendered = 0;
                 }
             }
+            // when the mouse is left clicked
+            WindowEvent::MouseInput {
+                state: ElementState::Pressed,
+                button: MouseButton::Left,
+                ..
+            } => {
+                // set the mouse position to the mandelbrot shader coordinates
+                state.mandelbrot.center_at(
+                    state.mouse_position.0,
+                    state.mouse_position.1,
+                    state.size.width,
+                    state.size.height,
+                );
+                state.mouse_left_button_pressed = true;
+            }
+            // when the mouse is left released
+            WindowEvent::MouseInput {
+                state: ElementState::Released,
+                button: MouseButton::Left,
+                ..
+            } => {
+                state.mouse_left_button_pressed = false;
+            }
             // when the mouse scrolls, update the mandelbrot shader zoom by a magnitude of 1.1 or 0.9 depending on the direction of the scroll wheel.
             WindowEvent::MouseWheel { delta, .. } => {
                 match delta {
@@ -557,11 +616,7 @@ pub async fn run() {
                             zoom_factor = 0.9;
                         }
                         state.mandelbrot.zoom_in(
-                            zoom_factor,
-                            state.mouse_position.0,
-                            state.mouse_position.1,
-                            state.size.width,
-                            state.size.height,
+                            zoom_factor
                         );
                     }
                     MouseScrollDelta::PixelDelta(_) => {}
