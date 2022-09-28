@@ -65,8 +65,6 @@ fn itr(c: vec2<f32>,  z: vec2<f32>) -> f32{
     return f32(i) + 1. - log(log(length(z))) / log(2.);
 }
 
-
-
 fn fcol(it: f32) -> vec3<f32> {
     if(it < 512.){
         return vec3(.5 + .5 * sin(it / 32.), .5 + .5 * sin(it / 48.), .5 + .5 * sin(it / 64.));
@@ -83,12 +81,13 @@ fn cmul(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
 
 // create a function that colorize a pixel based on the number of iterations has seen below
 fn colorize(coordinate: vec2<f32>, iterations: f32) -> vec4<f32> {
-    var cycle = 50.0;
+    var cycle = 200.0;
     var color = vec3<f32>(0.0,0.0,0.0);
     if(iterations < f32(mandelbrot.maximum_iterations)) {
-        var t = (iterations * cycle % f32(mandelbrot.maximum_iterations)) ;
+        var log_iterations = log2(iterations);
+        log_iterations = log_iterations * log_iterations;
+        var t = abs(1.0 - (log_iterations % cycle) * 2.0 / cycle);
         // use a log scale to get a better color distribution
-        t = log(t + 1.0) ;
         color = vec3<f32>(
             0.5 + 0.5 * cos(t * 6.28 + coordinate.x + mandelbrot.seed / 1000.0),
             0.5 + 0.5 * sin(t * 12.88 + sin(coordinate.y) + coordinate.y + mandelbrot.seed / 170.0),
@@ -145,23 +144,30 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         var max = mandelbrot.mu;
         // create an epsilon var that is smaller when the zoom is bigger
 
-        var epsilon = 0.002 * mandelbrot.zoom;
-
+        var epsilon = 0.02;
+        if(mandelbrot.zoom < 1.0) {
+            epsilon = 0.02 / pow(10.0, log2(1.0 / mandelbrot.zoom)) ;
+        }
         // calculate the iteration
-        while (dot(dz, dz) < max && i < iteration) {
+        while (i < iteration) {
             // if squared module of dz is lower then a epsilon value, then break the loop
-             if (i > 0.0 && dot(z,z) < epsilon) {
+            dz = cmul(2.0 * z + dz,dz) + dc;
+            if (dot(dz, dz) >= max) {
+                break;
+            }
+            z = vpow2(z) + c;
+            if (dot(z,z) < epsilon) {
                 i = iteration;
                 break;
-             }
-            dz = cmul(2.0 * z + dz,dz) + dc;
-            z = vpow2(z) + c;
+            }
             i += 1.0;
         }
+
         // add the rest to i to get a smooth color gradient
-        i = i + 1.0 - log2(log2(dz.x * dz.x + dz.y * dz.y)) ;
-        // normalize i to get a value between 0 and 1
-        i = i / iteration;
+        let log_zn = log(dz.x * dz.x + dz.y * dz.y) / 2.0;
+        var nu = log(log_zn / log(2.0)) / log(2.0);
+        i += (1.0 - nu) ;
+
         // calculate the iteration with the intensity
         mandelbrotTexture[index] = i;
     }
