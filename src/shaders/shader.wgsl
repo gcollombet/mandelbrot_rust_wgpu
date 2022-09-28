@@ -83,10 +83,12 @@ fn cmul(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
 
 // create a function that colorize a pixel based on the number of iterations has seen below
 fn colorize(coordinate: vec2<f32>, iterations: f32) -> vec4<f32> {
-    var cycle = 2000.0;
+    var cycle = 50.0;
     var color = vec3<f32>(0.0,0.0,0.0);
     if(iterations < f32(mandelbrot.maximum_iterations)) {
-        var t = (iterations * cycle % cycle) ;
+        var t = (iterations * cycle % f32(mandelbrot.maximum_iterations)) ;
+        // use a log scale to get a better color distribution
+        t = log(t + 1.0) ;
         color = vec3<f32>(
             0.5 + 0.5 * cos(t * 6.28 + coordinate.x + mandelbrot.seed / 1000.0),
             0.5 + 0.5 * sin(t * 12.88 + sin(coordinate.y) + coordinate.y + mandelbrot.seed / 170.0),
@@ -127,7 +129,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             in.coord.x + mandelbrot.seed,
             in.coord.y + mandelbrot.seed
         );
-//        var fractalCoord = vec2(-0.7978966809395276,0.17955438482264596);
         var fractalCoord = vec2(-0.797896687,0.1795543821);
         var coord_x : f32 = fractalCoord.x;
         var coord_y : f32= fractalCoord.y;
@@ -142,9 +143,17 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         var i = 0.0;
         var i2 = 0.0;
         var max = mandelbrot.mu;
+        // create an epsilon var that is smaller when the zoom is bigger
+
+        var epsilon = 0.002 * mandelbrot.zoom;
 
         // calculate the iteration
         while (dot(dz, dz) < max && i < iteration) {
+            // if squared module of dz is lower then a epsilon value, then break the loop
+             if (i > 0.0 && dot(z,z) < epsilon) {
+                i = iteration;
+                break;
+             }
             dz = cmul(2.0 * z + dz,dz) + dc;
             z = vpow2(z) + c;
             i += 1.0;

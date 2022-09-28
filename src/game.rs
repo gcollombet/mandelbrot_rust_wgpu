@@ -241,7 +241,7 @@ impl Game {
             }
         );
         // windows height and width
-        let mandelbrot_shader = Mandelbrot::new(100000, size.width, size.height );
+        let mandelbrot_shader = Mandelbrot::new(2000, size.width, size.height );
         let mandelbrot_shader_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Mandelbrot Buffer"),
@@ -462,7 +462,7 @@ impl Game {
         // add one to the mandelbrot seed
         self.mandelbrot.seed += 1.0;
         self.mandelbrot.zoom *= 0.9993;
-        self.mandelbrot.is_rendered = 0;
+            self.mandelbrot.is_rendered = 0;
         // update the mandelbrot shader buffer
         self.queue.write_buffer(
             &self.mandelbrot_uniform_buffer,
