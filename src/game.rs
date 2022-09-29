@@ -12,7 +12,7 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
-use winit::platform::windows::WindowExtWindows;
+// use winit::platform::windows::WindowExtWindows;
 use winit::window::{Fullscreen, Window};
 
 use mandelbrot::Mandelbrot;
@@ -391,7 +391,7 @@ pub async fn run() {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
     window.set_title("Mandelbrot");
-    window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+    // window.set_fullscreen(Some(Fullscreen::Borderless(None)));
     let mut state = Game::new(&window).await;
 
     event_loop.run(move |event, _, control_flow| match event {
