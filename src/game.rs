@@ -6,6 +6,7 @@ use std::borrow::Borrow;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::time::{Duration, Instant};
+use wgpu::ShaderModule;
 use wgpu::util::DeviceExt;
 use winit::{
     event::*,
@@ -20,12 +21,89 @@ use bind_buffer::BindBuffer;
 use vertex::Vertex;
 use vertex::VERTICES;
 
-struct Game {
+struct Engine {
     surface: wgpu::Surface,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
+    queue: wgpu::Queue,
+    device: wgpu::Device,
+    render_pipelines: Vec<wgpu::RenderPipeline>
+    // shaders: Vec<ShaderModule>,
+    // vertex_buffer: wgpu::Buffer,
+    // index_buffer: wgpu::Buffer,
+}
+
+
+// implement engine for Engine struct whith a new function
+
+
+impl Engine {
+    // the new function takes a window as a parameter
+    // and initializes the engine with the window like it is done in Game new function
+    // the idea is to refactor the Game new function to use the Engine new function
+    async fn new(window: &Window) -> Self {
+        // create surface
+        let size = window.inner_size();
+        let instance = wgpu::Instance::new(wgpu::Backends::all());
+        let surface = unsafe { instance.create_surface(window) };
+        // create adapter
+        let adapter = instance.request_adapter(
+            &wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::HighPerformance,
+                compatible_surface: Some(&surface),
+                force_fallback_adapter: false,
+            }
+        ).await.expect("Impossible to find a GPU!");
+        // create device and queue
+        let (device, queue) = adapter.request_device(
+            &wgpu::DeviceDescriptor {
+                features: wgpu::Features::empty(),
+                // WebGL doesn't support all of wgpu's features, so if
+                // we're building for the web we'll have to disable some.
+                limits: if cfg!(target_arch = "wasm32") {
+                    wgpu::Limits::downlevel_webgl2_defaults()
+                } else {
+                    wgpu::Limits::default()
+                },
+                label: None,
+            },
+            None, // Trace path
+        ).await.expect("Impossible to create device and queue!");
+        let modes = surface.get_supported_modes(&adapter);
+        // if modes countain Mailbox, use it, otherwise use FIFO
+        let mode = modes.iter()
+            .find(|m| **m == wgpu::PresentMode::Mailbox)
+            .unwrap_or(&wgpu::PresentMode::Fifo);
+        let config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format: surface.get_supported_formats(&adapter)[0],
+            width: size.width,
+            height: size.height,
+            present_mode: *mode,
+        };
+        surface.configure(&device, &config);
+        Self {
+            surface,
+            config,
+            queue,
+            device,
+            render_pipelines: vec![]
+        }
+    }
+}
+
+
+struct Game {
     size: winit::dpi::PhysicalSize<u32>,
+    is_fullscreen: bool,
+    mouse_position: (f32, f32),
+    mouse_left_button_pressed: bool,
+    mouse_right_button_pressed: bool,
+    zoom_speed: f32,
+    move_speed: (f32, f32),
+    surface: wgpu::Surface,
+    queue: wgpu::Queue,
+    device: wgpu::Device,
+    config: wgpu::SurfaceConfiguration,
     render_pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
     num_vertices: u32,
@@ -39,11 +117,6 @@ struct Game {
     mandelbrot_texture_bind_group: wgpu::BindGroup,
     // last_screen_update
     last_screen_update: Instant,
-    // add the mouse position
-    mouse_position: (f32, f32),
-    is_fullscreen: bool,
-    zoom_speed: f32,
-    mouse_left_button_pressed: bool,
 }
 
 impl Game {
@@ -52,7 +125,11 @@ impl Game {
         let size = window.inner_size();
         // The instance is a handle to our GPU
         // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
-        let mandelbrot = Mandelbrot::new(100000, size.width, size.height);
+        let mandelbrot = Mandelbrot::new(
+            100000,
+            size.width,
+            size.height
+        );
         let instance = wgpu::Instance::new(wgpu::Backends::all());
         let surface = unsafe { instance.create_surface(window) };
         let adapter = instance.request_adapter(
@@ -89,7 +166,8 @@ impl Game {
             present_mode: *mode,
         };
         surface.configure(&device, &config);
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        let shader = device.create_shader_module(
+            wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shaders/mandelbrot.wgsl").into()),
         });
@@ -115,17 +193,18 @@ impl Game {
                 label: Some("Mandelbrot Texture Buffer"),
                 size: (size.width * size.height * 4) as wgpu::BufferAddress,
                 usage: wgpu::BufferUsages::STORAGE
-                    | wgpu::BufferUsages::COPY_DST
-                    | wgpu::BufferUsages::COPY_SRC
-                    | wgpu::BufferUsages::MAP_READ
-                    | wgpu::BufferUsages::MAP_WRITE,
+                    | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             }
         );
         // initialize the mandelbrot texture buffer
         // create a simple u8 array of the size of the number of pixels in the window
         let mut mandelbrot_texture_data = vec![0u8; (size.width * size.height * 4) as usize];
-        queue.write_buffer(&mandelbrot_texture_buffer, 0, mandelbrot_texture_data.as_slice());
+        queue.write_buffer(
+            &mandelbrot_texture_buffer,
+            0,
+            mandelbrot_texture_data.as_slice()
+        );
 
         // create a bind group for the mandelbrot texture
         let mandelbrot_texture_bind_group_layout = device.create_bind_group_layout(
@@ -199,7 +278,8 @@ impl Game {
                 push_constant_ranges: &[],
             });
 
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        let render_pipeline = device.create_render_pipeline(
+            &wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
@@ -258,6 +338,8 @@ impl Game {
             is_fullscreen: false,
             zoom_speed: 0.995,
             mouse_left_button_pressed: false,
+            mouse_right_button_pressed: false,
+            move_speed: (0.0, 0.0)
         }
     }
 
@@ -312,7 +394,7 @@ impl Game {
             );
             self.mandelbrot.height = self.size.height;
             self.mandelbrot.width = self.size.width;
-            self.mandelbrot.is_rendered = 0;
+            self.mandelbrot.must_redraw = 0;
         }
     }
 
@@ -322,11 +404,11 @@ impl Game {
 
     fn update(&mut self) {
         // add one to the mandelbrot seed
-        self.mandelbrot.seed += 1.0;
+        self.mandelbrot.generation += 1.0;
 
         if self.zoom_speed != 1.0 {
             self.mandelbrot.zoom *= self.zoom_speed;
-            self.mandelbrot.is_rendered = 0;
+            self.mandelbrot.must_redraw = 0;
         }
         let last_max_iterations = self.mandelbrot.maximum_iterations;
         // mandelbrot max iterations is log_10 of the inverse of the zoom
@@ -379,8 +461,8 @@ impl Game {
         // submit will accept anything that implements IntoIter
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
-        if self.mandelbrot.is_rendered == 0 {
-            self.mandelbrot.is_rendered = 1;
+        if self.mandelbrot.must_redraw == 0 {
+            self.mandelbrot.must_redraw = 1;
         }
         Ok(())
     }
@@ -550,9 +632,9 @@ pub async fn run() {
                 state.mouse_position.0 = position.x as f32;
                 state.mouse_position.1 = position.y as f32;
                 // if the left mouse button is pressed
-                if state.mouse_left_button_pressed {
+                if state.mouse_right_button_pressed {
                     // update the mandelbrot shader coordinates
-                    state.mandelbrot.center_at(
+                    state.mandelbrot.center_orbit_at(
                         state.mouse_position.0,
                         state.mouse_position.1,
                         state.size.width,
@@ -560,28 +642,41 @@ pub async fn run() {
                     );
                 }
             }
+            // when zero is pressed
+            WindowEvent::KeyboardInput {
+                input:
+                KeyboardInput {
+                    virtual_keycode: Some(VirtualKeyCode::Numpad0),
+                    state: ElementState::Pressed,
+                    ..
+                },
+                ..
+            } => {
+                state.mandelbrot.center_to_orbit();
+            }
             // When the arrow keys are pressed or zqsd keys, update the mandelbrot shader coordinates.
             WindowEvent::KeyboardInput { input, .. } => {
                 // detect if keyboard is in french or english
                 if let Some(keycode) = input.virtual_keycode {
                     let movement = 0.1 * state.mandelbrot.zoom;
+                    // if movement is < epsilon then set it to 0.0
+                    let movement = if movement < f32::EPSILON { f32::EPSILON } else { movement };
                     match keycode {
                         // group similar keys together
                         VirtualKeyCode::Left | VirtualKeyCode::Q => {
-                            state.mandelbrot.x -= movement;
+                            state.mandelbrot.move_by((-movement, 0.0));
                         }
                         VirtualKeyCode::Right | VirtualKeyCode::D => {
-                            state.mandelbrot.x += movement;
+                            state.mandelbrot.move_by((movement, 0.0));
                         }
                         VirtualKeyCode::Up | VirtualKeyCode::Z => {
-                            state.mandelbrot.y += movement;
+                            state.mandelbrot.move_by((0.0, movement));
                         }
                         VirtualKeyCode::Down | VirtualKeyCode::S => {
-                            state.mandelbrot.y -= movement;
+                            state.mandelbrot.move_by((0.0, -movement));
                         }
                         _ => {}
                     }
-                    state.mandelbrot.is_rendered = 0;
                 }
             }
             // when the mouse is left clicked
@@ -598,6 +693,20 @@ pub async fn run() {
                     state.size.height,
                 );
                 state.mouse_left_button_pressed = true;
+            }
+            WindowEvent::MouseInput {
+                state: ElementState::Pressed,
+                button: MouseButton::Right,
+                ..
+            } => {
+                state.mouse_right_button_pressed = true;
+            }
+            WindowEvent::MouseInput {
+                state: ElementState::Released,
+                button: MouseButton::Right,
+                ..
+            } => {
+                state.mouse_right_button_pressed = false;
             }
             // when the mouse is left released
             WindowEvent::MouseInput {
@@ -622,7 +731,6 @@ pub async fn run() {
                     MouseScrollDelta::PixelDelta(_) => {}
                 }
             }
-
             WindowEvent::CloseRequested
             | WindowEvent::KeyboardInput {
                 input:
