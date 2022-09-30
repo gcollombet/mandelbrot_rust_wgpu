@@ -412,7 +412,7 @@ impl Game {
         }
         let last_max_iterations = self.mandelbrot.maximum_iterations;
         // mandelbrot max iterations is log_10 of the inverse of the zoom
-        self.mandelbrot.maximum_iterations = (1.0 + (1.0 / self.mandelbrot.zoom).log2().clamp(0.0, 100.0)) as u32 * 100 + 100;
+        self.mandelbrot.maximum_iterations = (1.0 + (1.0 / self.mandelbrot.zoom).log2().clamp(0.0, 100.0)) as u32 * 200 + 100;
         // print max iterations to the console if it has changed
         if self.mandelbrot.maximum_iterations != last_max_iterations {
             println!("max iterations: {}", self.mandelbrot.maximum_iterations);

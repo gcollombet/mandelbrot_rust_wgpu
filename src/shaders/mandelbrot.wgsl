@@ -1,5 +1,13 @@
 // Vertex shader
 
+// TODO Compute color with a color lookup table
+// TODO Give a special color to the outside color of the mandelbrot set (black) and on when espilon is reached (red)
+// TODO Calculate a distance from the border when outside of the mandelbrot set
+// TODO Calculate the distance from the border when inside the mandelbrot set https://www.shadertoy.com/view/lsX3W4
+// TODO https://en.wikibooks.org/wiki/Fractals/Iterations_in_the_complex_plane/demm#Interior_distance_estimation
+// TODO Render with max iterations 1000 and then render another 1000 in the remaning area
+
+
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) color: vec3<f32>,
@@ -105,32 +113,22 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         var i = 0.0;
         var max = mandelbrot.mu;
         // create an epsilon var that is smaller when the zoom is bigger
-
-        var epsilon = mandelbrot.epsilon;
-//        if(mandelbrot.zoom < 1.0) {
-//            epsilon = mandelbrot.epsilon / mandelbrot.zoom ;
-            epsilon = mandelbrot.epsilon / pow(4.0, log2(1.0 / mandelbrot.zoom)) ;
-//        }
+        var epsilon = mandelbrot.epsilon / pow(4.0, log2(1.0 / mandelbrot.zoom)) ;
         // calculate the iteration
         while (i < iteration) {
 //            ddz = ddz * 2.0 * z + vec2<f32>(1.0, 0.0);
             dz = cmul(2.0 * z + dz,dz) + dc;
             // if squared module of dz is lower then a epsilon value, then break the loop
-            let dot_z = dot(dz, dz);
-            if (dot_z >= max) {
+            let dot_dz = dot(dz, dz);
+            if (dot_dz >= max) {
                 break;
             }
-            if (dot_z < epsilon) {
+            if (dot_dz < epsilon) {
                 i = iteration;
                 break;
             }
             z = vpow2(z) + c;
-//            if (dot(z,z) < epsilon) {
-//                i = iteration;
-//                break;
-//            } else {
-                i += 1.0;
-//            }
+            i += 1.0;
         }
 
         // TODO pre-compute all the iterations of z in a storage buffer in double precision
