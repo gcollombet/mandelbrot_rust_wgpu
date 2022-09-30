@@ -412,7 +412,7 @@ impl Game {
         }
         let last_max_iterations = self.mandelbrot.maximum_iterations;
         // mandelbrot max iterations is log_10 of the inverse of the zoom
-        self.mandelbrot.maximum_iterations = (1.0 + (1.0 / self.mandelbrot.zoom).log2().clamp(0.0, 100.0)) as u32 * 50 + 100;
+        self.mandelbrot.maximum_iterations = (1.0 + (1.0 / self.mandelbrot.zoom).log2().clamp(0.0, 100.0)) as u32 * 100 + 100;
         // print max iterations to the console if it has changed
         if self.mandelbrot.maximum_iterations != last_max_iterations {
             println!("max iterations: {}", self.mandelbrot.maximum_iterations);
@@ -492,7 +492,7 @@ pub async fn run() {
         }
         Event::MainEventsCleared => {
             // this is the time between screen updates
-            let time_between_screen_updates = Duration::from_millis(1000 / 60);
+            let time_between_screen_updates = Duration::from_millis(1000 / 144);
             // this is the time between the last screen update and now
             let time_since_last_screen_update = Instant::now() - state.last_screen_update;
             // this is the time until the next screen update
@@ -552,7 +552,7 @@ pub async fn run() {
                 },
                 ..
             } => {
-                state.mandelbrot.color_palette_scale = 1 + (state.mandelbrot.color_palette_scale as f32 * 1.1) as u32;
+                state.mandelbrot.color_palette_scale = 0.01 + state.mandelbrot.color_palette_scale as f32 * 1.1;
             }
             // when the key page down is pressed
             WindowEvent::KeyboardInput {
@@ -564,7 +564,7 @@ pub async fn run() {
                 },
                 ..
             } => {
-                state.mandelbrot.color_palette_scale = 1 + (state.mandelbrot.color_palette_scale as f32 / 1.1) as u32;
+                state.mandelbrot.color_palette_scale = 0.01 + state.mandelbrot.color_palette_scale as f32 / 1.1;
             }
             // when the + key is pressed increase the the zoom speed by 1.1
             WindowEvent::KeyboardInput {
@@ -629,6 +629,17 @@ pub async fn run() {
             }
             // update the mandelbrot shader coordinates when the mouse is moved.
             WindowEvent::CursorMoved { position, .. } => {
+                if state.mouse_left_button_pressed {
+                    if state.mouse_position.0 == 0.0 && state.mouse_position.1 == 0.0 {
+                        state.mouse_position = (position.x as f32, position.y as f32);
+                    }
+                    state.mandelbrot.move_by_pixel(
+                        position.x as f32 - state.mouse_position.0,
+                        position.y as f32 - state.mouse_position.1,
+                        state.size.width,
+                        state.size.height,
+                    );
+                }
                 state.mouse_position.0 = position.x as f32;
                 state.mouse_position.1 = position.y as f32;
                 // if the left mouse button is pressed
@@ -658,9 +669,9 @@ pub async fn run() {
             WindowEvent::KeyboardInput { input, .. } => {
                 // detect if keyboard is in french or english
                 if let Some(keycode) = input.virtual_keycode {
-                    let movement = 0.1 * state.mandelbrot.zoom;
+                    let movement = 0.025 * state.mandelbrot.zoom;
                     // if movement is < epsilon then set it to 0.0
-                    let movement = if movement < f32::EPSILON { f32::EPSILON } else { movement };
+                    // let movement = if movement < f32::EPSILON { f32::EPSILON } else { movement };
                     match keycode {
                         // group similar keys together
                         VirtualKeyCode::Left | VirtualKeyCode::Q => {
@@ -685,13 +696,15 @@ pub async fn run() {
                 button: MouseButton::Left,
                 ..
             } => {
+                state.mouse_position.0 = 0.0;
+                state.mouse_position.1 = 0.0;
                 // set the mouse position to the mandelbrot shader coordinates
-                state.mandelbrot.center_at(
-                    state.mouse_position.0,
-                    state.mouse_position.1,
-                    state.size.width,
-                    state.size.height,
-                );
+                // state.mandelbrot.center_at(
+                //     state.mouse_position.0,
+                //     state.mouse_position.1,
+                //     state.size.width,
+                //     state.size.height,
+                // );
                 state.mouse_left_button_pressed = true;
             }
             WindowEvent::MouseInput {
