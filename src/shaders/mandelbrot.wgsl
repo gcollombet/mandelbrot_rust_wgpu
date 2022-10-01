@@ -6,6 +6,7 @@
 // TODO Calculate the distance from the border when inside the mandelbrot set https://www.shadertoy.com/view/lsX3W4
 // TODO https://en.wikibooks.org/wiki/Fractals/Iterations_in_the_complex_plane/demm#Interior_distance_estimation
 // TODO Render with max iterations 1000 and then render another 1000 in the remaning area
+// TODO Use arbitraty precision number to calculate orbit
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
@@ -98,7 +99,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             mandelbrot.center_delta.x + in.coord.x * f32(mandelbrot.width) / f32(mandelbrot.height) * mandelbrot.zoom ,
             mandelbrot.center_delta.y + in.coord.y * mandelbrot.zoom
         );
-//        var z = vec2<f32>(0.0, 0.0);
         var z = mandelbrotOrbitPointSuite[0];
         var dz = vec2<f32>(0.0, 0.0);
         var i = 0.0;
