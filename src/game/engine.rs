@@ -2,7 +2,7 @@ pub mod bind_buffer;
 pub mod vertex;
 
 use winit::window::{Fullscreen, Window};
-use wgpu::ShaderModule;
+use wgpu::{BufferUsages, ShaderModule};
 use wgpu::util::DeviceExt;
 use bind_buffer::BindBuffer;
 use crate::game::engine::vertex::{Vertex, VERTICES};
@@ -14,8 +14,7 @@ pub struct Engine {
     pub device: wgpu::Device,
     shader: Option<ShaderModule>,
     render_pipeline: Option<wgpu::RenderPipeline>,
-    pub uniform_buffers: Vec<BindBuffer>,
-    pub storage_buffers: Vec<BindBuffer>,
+    pub buffers: Vec<BindBuffer>,
     vertex_buffer: wgpu::Buffer,
 }
 
@@ -80,8 +79,7 @@ impl Engine {
             device,
             render_pipeline: None,
             shader: None,
-            uniform_buffers: vec![],
-            storage_buffers: vec![],
+            buffers: vec![],
             vertex_buffer,
         };
         engine
@@ -128,11 +126,8 @@ impl Engine {
             render_pass.set_pipeline(&self.render_pipeline.as_ref().unwrap());
 
             // set bind groups from bind buffers with incrementing index
-            for (i, bind_buffer) in self.uniform_buffers.iter().enumerate() {
-                render_pass.set_bind_group(0 as u32, &bind_buffer.bind_group, &[]);
-            }
-            for (i, bind_buffer) in self.storage_buffers.iter().enumerate() {
-                render_pass.set_bind_group(1 as u32, &bind_buffer.bind_group, &[]);
+            for (i, bind_buffer) in self.buffers.iter().enumerate() {
+                render_pass.set_bind_group(i as u32, &bind_buffer.bind_group, &[]);
             }
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.draw(0..VERTICES.len() as u32, 0..1);
@@ -143,23 +138,50 @@ impl Engine {
         Ok(())
     }
 
-    pub fn add_storage_buffer(&mut self, data: &[u8]) {
-        self.storage_buffers.push(
-            BindBuffer::new_storage_buffer(
-                &self.device,
-                &self.queue,
-                data
-            )
-        );
+    pub fn replace_buffer(&mut self, index: usize, usage: BufferUsages , data: &[u8]) {
+        match usage {
+            BufferUsages::UNIFORM => {
+                self.buffers.push(
+                    BindBuffer::new_uniform_buffer(
+                        &self.device,
+                        data
+                    )
+                );
+            },
+            BufferUsages::STORAGE => {
+                self.buffers.push(
+                    BindBuffer::new_storage_buffer(
+                        &self.device,
+                        &self.queue,
+                        data
+                    )
+                );
+            },
+            _ => {}
+        }
     }
 
-    pub fn add_uniform_buffer(&mut self, data: &[u8]) {
-        self.uniform_buffers.push(
-            BindBuffer::new_uniform_buffer(
-                &self.device,
-                data
-            )
-        );
+    pub fn add_buffer(&mut self, usage: BufferUsages, data: &[u8]) {
+        match usage {
+            BufferUsages::UNIFORM => {
+                self.buffers.push(
+                    BindBuffer::new_uniform_buffer(
+                        &self.device,
+                        data
+                    )
+                );
+            },
+            BufferUsages::STORAGE => {
+                self.buffers.push(
+                    BindBuffer::new_storage_buffer(
+                        &self.device,
+                        &self.queue,
+                        data
+                    )
+                );
+            },
+            _ => {}
+        }
     }
 
     pub fn create_pipeline(&mut self) {
@@ -170,12 +192,9 @@ impl Engine {
                     include_str!("../shaders/mandelbrot.wgsl").into()
                 ),
             });
-        // extract a slice of bind group layouts from the uniform and storage buffers
-        let bind_group_layouts = self
-            .uniform_buffers
-            .iter()
-            .map(|b| &b.bind_group_layout)
-            .chain(self.storage_buffers.iter().map(|b| &b.bind_group_layout))
+        // extract a slice of bind group layouts from  buffers
+        let bind_group_layouts = self.buffers.iter()
+            .map(|buffer| &buffer.bind_group_layout)
             .collect::<Vec<_>>();
 
         // create a render pipeline layout

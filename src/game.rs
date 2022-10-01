@@ -92,7 +92,7 @@ impl Game {
         }
         // update the mandelbrot shader buffer
         self.engine.queue.write_buffer(
-            &self.engine.uniform_buffers[0].buffer,
+            &self.engine.buffers[0].buffer,
             0,
             bytemuck::cast_slice(&[self.mandelbrot]),
         );
