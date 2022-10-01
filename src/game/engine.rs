@@ -85,14 +85,14 @@ impl Engine {
         engine
     }
 
-    pub fn update(&mut self) {
-        // TODO
-    }
-
     pub fn resize(&mut self, size: winit::dpi::PhysicalSize<u32>) {
         self.config.width = size.width;
         self.config.height = size.height;
         self.surface.configure(&self.device, &self.config);
+    }
+
+    pub fn update(&mut self) {
+        // TODO
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -124,7 +124,6 @@ impl Engine {
                 }
             );
             render_pass.set_pipeline(&self.render_pipeline.as_ref().unwrap());
-
             // set bind groups from bind buffers with incrementing index
             for (i, bind_buffer) in self.buffers.iter().enumerate() {
                 render_pass.set_bind_group(i as u32, &bind_buffer.bind_group, &[]);
@@ -138,50 +137,31 @@ impl Engine {
         Ok(())
     }
 
-    pub fn replace_buffer(&mut self, index: usize, usage: BufferUsages , data: &[u8]) {
-        match usage {
-            BufferUsages::UNIFORM => {
-                self.buffers.push(
-                    BindBuffer::new_uniform_buffer(
-                        &self.device,
-                        data
-                    )
-                );
-            },
-            BufferUsages::STORAGE => {
-                self.buffers.push(
-                    BindBuffer::new_storage_buffer(
-                        &self.device,
-                        &self.queue,
-                        data
-                    )
-                );
-            },
-            _ => {}
-        }
+    pub fn replace_buffer(
+        &mut self,
+        index: usize,
+        usage: BufferUsages,
+        data: &[u8],
+    ) {
+        self.buffers[index] = BindBuffer::new(
+            &self.device,
+            usage,
+            data,
+        );
     }
 
-    pub fn add_buffer(&mut self, usage: BufferUsages, data: &[u8]) {
-        match usage {
-            BufferUsages::UNIFORM => {
-                self.buffers.push(
-                    BindBuffer::new_uniform_buffer(
-                        &self.device,
-                        data
-                    )
-                );
-            },
-            BufferUsages::STORAGE => {
-                self.buffers.push(
-                    BindBuffer::new_storage_buffer(
-                        &self.device,
-                        &self.queue,
-                        data
-                    )
-                );
-            },
-            _ => {}
-        }
+    pub fn add_buffer(
+        &mut self, usage:
+        BufferUsages,
+        data: &[u8],
+    ) {
+        self.buffers.push(
+            BindBuffer::new(
+                &self.device,
+                usage,
+                data,
+            )
+        );
     }
 
     pub fn create_pipeline(&mut self) {

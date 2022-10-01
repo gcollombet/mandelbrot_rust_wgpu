@@ -1,3 +1,6 @@
+use num::Complex;
+use num::complex::ComplexFloat;
+
 // We need this for Rust to store our data correctly for the shaders
 #[repr(C)]
 // This is so we can store this in a buffer
@@ -10,7 +13,7 @@ pub struct Mandelbrot {
     // pub center_coordinate: [f32; 2],
     // the coordinate of an orbit point in the complex plane that is in the Mandelbrot set
     // and that is near the coordinate of the point in the complex plane in the center of the screen
-    pub near_orbit_coordinate: [f32; 2],
+    pub near_orbit_coordinate: [f64; 2],
     // a small value corresponding to the maximum error tolerated for the calculation the Mandelbrot set
     pub epsilon: f32,
     // the number of iterations of the calculation of the Mandelbrot set
@@ -44,8 +47,9 @@ impl Default for Mandelbrot {
             must_redraw: 0,
             color_palette_scale: 100.0,
             center_delta: [0.0, 0.0],
-            near_orbit_coordinate: [-0.80266213, 0.18230489],
-            epsilon: 0.00001,
+            // near_orbit_coordinate: [-1.6, 0.0],
+            near_orbit_coordinate: [-0.8005649172622006, 0.17666909128376448],
+            epsilon: 0.0001,
             z_square: 0.0,
         }
     }
@@ -67,40 +71,65 @@ impl Mandelbrot {
         self.center_delta[0] += normalized_mouse_vector.0 * (self.width as f32 / self.height as f32) * self.zoom;
         self.center_delta[1] += normalized_mouse_vector.1 * self.zoom;
         self.must_redraw = 0;
-        // print to console the coordinates
-        println!(
-            "x: {}, y: {}, zoom: {}",
-            self.near_orbit_coordinate[0] + self.center_delta[0],
-            self.near_orbit_coordinate[1] + self.center_delta[1],
-            self.zoom
+    }
+
+    pub fn calculate_orbit_point_suite(
+        &self,
+    ) -> Vec<[f32; 2]> {
+        let mut result = vec![];
+        result.resize(10000, [0.0, 0.0]);
+        let mut z = Complex::new(
+            0.0_f64,
+            0.0_f64,
         );
+        let c = Complex::new(
+            self.near_orbit_coordinate[0],
+            self.near_orbit_coordinate[1],
+        );
+        let mut i = 0;
+        while i < 10000 {
+            result[i as usize]=[z.re() as f32, z.im() as f32];
+            z = z * z + c;
+            if z.norm() > self.mu as f64 {
+                break;
+            }
+            i += 1;
+        }
+        result
     }
 
     pub fn center_to_orbit(&mut self) {
         self.center_delta[0] = 0.0;
         self.center_delta[1] = 0.0;
         self.must_redraw = 0;
+        // print to console the coordinates
+        println!(
+            "x: {}, y: {}, zoom: {}",
+            self.near_orbit_coordinate[0] as f64 + self.center_delta[0] as f64,
+            self.near_orbit_coordinate[1] as f64 + self.center_delta[1] as f64,
+            self.zoom
+        );
     }
 
     pub fn center_orbit_at(
         &mut self,
-        mouse_x: f32,
-        mouse_y: f32,
+        mouse_x: isize,
+        mouse_y: isize,
         window_width: u32,
         window_height: u32,
     ) {
         let normalized_mouse_vector = (
-            (mouse_x - (window_width as f32 / 2.0)) / (window_width as f32 / 2.0),
-            (mouse_y - (window_height as f32 / 2.0)) / (window_height as f32 / 2.0) * -1.0,
+            (mouse_x as f64 - (window_width as f64 / 2.0)) / (window_width as f64 / 2.0),
+            (mouse_y as f64 - (window_height as f64 / 2.0)) / (window_height as f64 / 2.0) * -1.0,
         );
         let delta = (
-            normalized_mouse_vector.0 * (self.width as f32 / self.height as f32) * self.zoom,
-            normalized_mouse_vector.1 * self.zoom,
+            normalized_mouse_vector.0 * (self.width as f64 / self.height as f64) * self.zoom as f64,
+            normalized_mouse_vector.1 * self.zoom as f64,
         );
-        self.near_orbit_coordinate[0] += delta.0 + self.center_delta[0];
-        self.near_orbit_coordinate[1] += delta.1 + self.center_delta[1];
-        self.center_delta[0] = -delta.0;
-        self.center_delta[1] = -delta.1;
+        self.near_orbit_coordinate[0] += delta.0 + self.center_delta[0] as f64;
+        self.near_orbit_coordinate[1] += delta.1 + self.center_delta[1] as f64;
+        self.center_delta[0] = -delta.0 as f32;
+        self.center_delta[1] = -delta.1 as f32;
         self.must_redraw = 0;
     }
 
@@ -117,13 +146,13 @@ impl Mandelbrot {
     }
 
     pub fn move_by_pixel(&mut self,
-                         mouse_x: f32,
-                         mouse_y: f32,
+                         mouse_x: isize,
+                         mouse_y: isize,
                          window_width: u32,
                          window_height: u32,) {
         let normalized_mouse_vector = (
-            mouse_x / (window_width as f32 / 2.0),
-            mouse_y / (window_height as f32 / 2.0) * -1.0,
+            mouse_x as f32 / (window_width as f32 / 2.0),
+            mouse_y as f32 / (window_height as f32 / 2.0) * -1.0,
         );
         self.center_delta[0] -= normalized_mouse_vector.0 * (self.width as f32 / self.height as f32) * self.zoom;
         self.center_delta[1] -= normalized_mouse_vector.1 * self.zoom;

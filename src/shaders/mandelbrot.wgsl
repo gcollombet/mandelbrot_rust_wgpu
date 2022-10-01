@@ -7,7 +7,6 @@
 // TODO https://en.wikibooks.org/wiki/Fractals/Iterations_in_the_complex_plane/demm#Interior_distance_estimation
 // TODO Render with max iterations 1000 and then render another 1000 in the remaning area
 
-
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) coordinate: vec2<f32>,
@@ -23,7 +22,7 @@ struct MandelbrotUniform {
     generation : f32,
     zoom: f32,
     center_delta: vec2<f32>,
-    near_orbit_coordinate: vec2<f32>,
+    near_orbit_coordinate: vec4<f32>,
     epsilon: f32,
     maximum_iterations: u32,
     width: u32,
@@ -40,6 +39,10 @@ var<uniform> mandelbrot: MandelbrotUniform;
 @group(1) @binding(0)
 var<storage, read_write> mandelbrotTexture: array<f32>;
 
+// add the storage buffer
+@group(2) @binding(0)
+var<storage, read_write> mandelbrotOrbitPointSuite: array<vec2<f32>>;
+
 @vertex
 fn vs_main(
     model: VertexInput,
@@ -54,13 +57,6 @@ fn vs_main(
 fn vpow2(v: vec2<f32>) -> vec2<f32> {
      return vec2(v.x * v.x - v.y * v.y, 2. * v.x * v.y);
 }
-
-fn rv( v: vec2<f32>, r: f32) -> vec2<f32> {
-    var a: f32 = atan2(v.y, v.x);
-    a += r;
-    return vec2(cos(a), sin(a)) * length(v);
-}
-
 
 // cmul is a complex multiplication
 fn cmul(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
@@ -78,7 +74,6 @@ fn colorize(coordinate: vec2<f32>, iterations: f32) -> vec4<f32> {
         log_iterations = log_iterations * log_iterations;
         var t = abs(1.0 - (log_iterations % cycle) * 2.0 / cycle);
         // use a log scale to get a better color distribution
-//        color = vec3<f32>(t, t, t);
         color = vec3<f32>(
             0.5 + 0.5 * cos(t * 6.28 + coordinate.x + mandelbrot.generation / 1000.0),
             0.5 + 0.5 * sin(t * 12.88 + sin(coordinate.y) + coordinate.y + mandelbrot.generation / 170.0),
@@ -99,53 +94,38 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var iteration = f32(mandelbrot.maximum_iterations);
     if(mandelbrot.must_redraw == 0u) {
         // draw a mandelbrot set
-        var c = mandelbrot.near_orbit_coordinate;
         var dc = vec2<f32>(
             mandelbrot.center_delta.x + in.coord.x * f32(mandelbrot.width) / f32(mandelbrot.height) * mandelbrot.zoom ,
             mandelbrot.center_delta.y + in.coord.y * mandelbrot.zoom
         );
-        var z = vec2<f32>(0.0, 0.0);
+//        var z = vec2<f32>(0.0, 0.0);
+        var z = mandelbrotOrbitPointSuite[0];
         var dz = vec2<f32>(0.0, 0.0);
-//        var ddz = vec2<f32>(1.0, 0.0);
         var i = 0.0;
         var max = mandelbrot.mu;
         // create an epsilon var that is smaller when the zoom is bigger
         var epsilon = mandelbrot.epsilon / pow(4.0, log2(1.0 / mandelbrot.zoom)) ;
         // calculate the iteration
         while (i < iteration) {
-//            ddz = ddz * 2.0 * z + vec2<f32>(1.0, 0.0);
+            z = mandelbrotOrbitPointSuite[u32(i)];
             dz = cmul(2.0 * z + dz,dz) + dc;
-            // if squared module of dz is lower then a epsilon value, then break the loop
+            // if squared module of dz
             let dot_dz = dot(dz, dz);
+             // if is bigger than a max value, then we are out of the mandelbrot set
             if (dot_dz >= max) {
                 break;
             }
+            //  if is lower then a epsilon value, then we are inside the mandelbrot set
             if (dot_dz < epsilon) {
                 i = iteration;
                 break;
             }
-            z = vpow2(z) + c;
             i += 1.0;
         }
-
-        // TODO pre-compute all the iterations of z in a storage buffer in double precision
-
-//        var v = vec2<f32>(0.5, 0.5);
-//        let h2 = 1.5;
-//        var u = z / dz;
-//        u = u / abs(u);
-//        var t = u.x * v.x + u.y * v.y + h2;
-//        t = t / (1.0 + h2);
-//        if (t < 0.0) {
-//            t = 0.0;
-//        }
-
         // add the rest to i to get a smooth color gradient
         let log_zn = log(dz.x * dz.x + dz.y * dz.y) / 2.0;
         var nu = log(log_zn / log(2.0)) / log(2.0);
         i += (1.0 - nu) ;
-
-
         // calculate the iteration with the intensity
         mandelbrotTexture[index] = i;
     }
