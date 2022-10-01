@@ -10,13 +10,12 @@
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
-    @location(1) color: vec3<f32>,
+    @location(1) coordinate: vec2<f32>,
 };
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) color: vec3<f32>,
-    @location(1) coord: vec2<f32>,
+    @location(0) coord: vec2<f32>,
 };
 
 // Define the uniform buffer from Mandelbrot Shader struct
@@ -46,14 +45,12 @@ fn vs_main(
     model: VertexInput,
 ) -> VertexOutput {
     var out: VertexOutput;
-    out.color = model.color;
     out.clip_position = vec4<f32>(model.position, 1.0);
-    out.coord = model.position.xy;
+    out.coord = model.coordinate.xy;
     return out;
 }
 
 // Fragment shader
-
 fn vpow2(v: vec2<f32>) -> vec2<f32> {
      return vec2(v.x * v.x - v.y * v.y, 2. * v.x * v.y);
 }

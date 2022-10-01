@@ -1,121 +1,28 @@
 mod mandelbrot;
-mod bind_buffer;
-mod vertex;
+mod engine;
 
-use std::borrow::Borrow;
-use std::fmt::Debug;
-use std::ops::Deref;
 use std::time::{Duration, Instant};
-use wgpu::ShaderModule;
-use wgpu::util::DeviceExt;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
+    window::{Fullscreen, Window, WindowBuilder},
 };
-// use winit::platform::windows::WindowExtWindows;
-use winit::window::{Fullscreen, Window};
-
 use mandelbrot::Mandelbrot;
-use bind_buffer::BindBuffer;
-use vertex::Vertex;
-use vertex::VERTICES;
-
-struct Engine {
-    surface: wgpu::Surface,
-    config: wgpu::SurfaceConfiguration,
-    queue: wgpu::Queue,
-    device: wgpu::Device,
-    render_pipelines: Vec<wgpu::RenderPipeline>
-    // shaders: Vec<ShaderModule>,
-    // vertex_buffer: wgpu::Buffer,
-    // index_buffer: wgpu::Buffer,
-}
-
-
-// implement engine for Engine struct whith a new function
-
-
-impl Engine {
-    // the new function takes a window as a parameter
-    // and initializes the engine with the window like it is done in Game new function
-    // the idea is to refactor the Game new function to use the Engine new function
-    async fn new(window: &Window) -> Self {
-        // create surface
-        let size = window.inner_size();
-        let instance = wgpu::Instance::new(wgpu::Backends::all());
-        let surface = unsafe { instance.create_surface(window) };
-        // create adapter
-        let adapter = instance.request_adapter(
-            &wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::HighPerformance,
-                compatible_surface: Some(&surface),
-                force_fallback_adapter: false,
-            }
-        ).await.expect("Impossible to find a GPU!");
-        // create device and queue
-        let (device, queue) = adapter.request_device(
-            &wgpu::DeviceDescriptor {
-                features: wgpu::Features::empty(),
-                // WebGL doesn't support all of wgpu's features, so if
-                // we're building for the web we'll have to disable some.
-                limits: if cfg!(target_arch = "wasm32") {
-                    wgpu::Limits::downlevel_webgl2_defaults()
-                } else {
-                    wgpu::Limits::default()
-                },
-                label: None,
-            },
-            None, // Trace path
-        ).await.expect("Impossible to create device and queue!");
-        let modes = surface.get_supported_modes(&adapter);
-        // if modes countain Mailbox, use it, otherwise use FIFO
-        let mode = modes.iter()
-            .find(|m| **m == wgpu::PresentMode::Mailbox)
-            .unwrap_or(&wgpu::PresentMode::Fifo);
-        let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_supported_formats(&adapter)[0],
-            width: size.width,
-            height: size.height,
-            present_mode: *mode,
-        };
-        surface.configure(&device, &config);
-        Self {
-            surface,
-            config,
-            queue,
-            device,
-            render_pipelines: vec![]
-        }
-    }
-}
-
+use engine::{
+    Engine,
+    bind_buffer::BindBuffer
+};
 
 struct Game {
     size: winit::dpi::PhysicalSize<u32>,
     is_fullscreen: bool,
+    engine: Engine,
     mouse_position: (f32, f32),
     mouse_left_button_pressed: bool,
     mouse_right_button_pressed: bool,
     zoom_speed: f32,
     move_speed: (f32, f32),
-    surface: wgpu::Surface,
-    queue: wgpu::Queue,
-    device: wgpu::Device,
-    config: wgpu::SurfaceConfiguration,
-    render_pipeline: wgpu::RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
-    num_vertices: u32,
-    // add the mandelbrot shader
     mandelbrot: Mandelbrot,
-    // add the mandelbrot shader buffer and bind group
-    mandelbrot_uniform_buffer: wgpu::Buffer,
-    mandelbrot_uniform_bind_group: wgpu::BindGroup,
-    // add the mandelbrot texture and bind group
-    mandelbrot_texture_buffer: wgpu::Buffer,
-    mandelbrot_texture_bind_group: wgpu::BindGroup,
-    // last_screen_update
     last_screen_update: Instant,
 }
 
@@ -126,272 +33,37 @@ impl Game {
         // The instance is a handle to our GPU
         // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
         let mandelbrot = Mandelbrot::new(
-            100000,
+            1000,
             size.width,
-            size.height
+            size.height,
         );
-        let instance = wgpu::Instance::new(wgpu::Backends::all());
-        let surface = unsafe { instance.create_surface(window) };
-        let adapter = instance.request_adapter(
-            &wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::default(),
-                compatible_surface: Some(&surface),
-                force_fallback_adapter: false,
-            },
-        ).await.unwrap();
-        let (device, queue) = adapter.request_device(
-            &wgpu::DeviceDescriptor {
-                features: wgpu::Features::empty(),
-                // WebGL doesn't support all of wgpu's features, so if
-                // we're building for the web we'll have to disable some.
-                limits: if cfg!(target_arch = "wasm32") {
-                    wgpu::Limits::downlevel_webgl2_defaults()
-                } else {
-                    wgpu::Limits::default()
-                },
-                label: None,
-            },
-            None, // Trace path
-        ).await.unwrap();
-        let modes = surface.get_supported_modes(&adapter);
-        // if modes countain Mailbox, use it, otherwise use FIFO
-        let mode = modes.iter()
-            .find(|m| **m == wgpu::PresentMode::Mailbox)
-            .unwrap_or(&wgpu::PresentMode::Fifo);
-        let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_supported_formats(&adapter)[0],
-            width: size.width,
-            height: size.height,
-            present_mode: *mode,
-        };
-        surface.configure(&device, &config);
-        let shader = device.create_shader_module(
-            wgpu::ShaderModuleDescriptor {
-            label: Some("Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shaders/mandelbrot.wgsl").into()),
-        });
-        let vertex_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(VERTICES),
-                usage: wgpu::BufferUsages::VERTEX,
-            }
+        let mut engine = Engine::new(window).await;
+        engine.add_uniform_buffer(
+            bytemuck::cast_slice(&[mandelbrot])
         );
-        // windows height and width
-        let mandelbrot_shader_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Mandelbrot Buffer"),
-                contents: bytemuck::cast_slice(&[mandelbrot]),
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            }
-        );
-
-        // create a simple float buffer of the size of the number of pixels in the window
-        let mandelbrot_texture_buffer = device.create_buffer(
-            &wgpu::BufferDescriptor {
-                label: Some("Mandelbrot Texture Buffer"),
-                size: (size.width * size.height * 4) as wgpu::BufferAddress,
-                usage: wgpu::BufferUsages::STORAGE
-                    | wgpu::BufferUsages::COPY_DST,
-                mapped_at_creation: false,
-            }
-        );
-        // initialize the mandelbrot texture buffer
-        // create a simple u8 array of the size of the number of pixels in the window
-        let mut mandelbrot_texture_data = vec![0u8; (size.width * size.height * 4) as usize];
-        queue.write_buffer(
-            &mandelbrot_texture_buffer,
-            0,
+        let mandelbrot_texture_data = vec![0u8; (size.width * size.height * 4) as usize];
+        engine.add_storage_buffer(
             mandelbrot_texture_data.as_slice()
         );
-
-        // create a bind group for the mandelbrot texture
-        let mandelbrot_texture_bind_group_layout = device.create_bind_group_layout(
-            &wgpu::BindGroupLayoutDescriptor {
-                label: Some("Mandelbrot Texture Bind Group Layout"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: false },
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
-                ],
-            }
-        );
-        let mandelbrot_texture_bind_group = device.create_bind_group(
-            &wgpu::BindGroupDescriptor {
-                label: Some("Mandelbrot Texture Bind Group"),
-                layout: &mandelbrot_texture_bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: mandelbrot_texture_buffer.as_entire_binding(),
-                    },
-                ],
-            }
-        );
-        // create a bind group for the mandelbrot shader
-        let mandelbrot_shader_bind_group_layout = device.create_bind_group_layout(
-            &wgpu::BindGroupLayoutDescriptor {
-                label: Some("Mandelbrot Shader Bind Group Layout"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
-                ],
-            }
-        );
-        let mandelbrot_shader_bind_group = device.create_bind_group(
-            &wgpu::BindGroupDescriptor {
-                label: Some("Mandelbrot Shader Bind Group"),
-                layout: &mandelbrot_shader_bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: mandelbrot_shader_buffer.as_entire_binding(),
-                    },
-                ],
-            }
-        );
-
-        // create a render pipeline layout
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[
-                    &mandelbrot_shader_bind_group_layout,
-                    &mandelbrot_texture_bind_group_layout,
-                ],
-                push_constant_ranges: &[],
-            });
-
-        let render_pipeline = device.create_render_pipeline(
-            &wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: "vs_main",
-                buffers: &[
-                    Vertex::desc(),
-                ],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: "fs_main",
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
-                polygon_mode: wgpu::PolygonMode::Fill,
-                // Requires Features::DEPTH_CLIP_CONTROL
-                unclipped_depth: false,
-                // Requires Features::CONSERVATIVE_RASTERIZATION
-                conservative: false,
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            multiview: None,
-        });
-        let num_vertices = VERTICES.len() as u32;
+        engine.create_pipeline();
         Self {
-            surface,
-            device,
-            queue,
-            config,
+            engine,
             size,
-            render_pipeline,
-            vertex_buffer,
-            num_vertices,
             mandelbrot,
-            mandelbrot_uniform_buffer: mandelbrot_shader_buffer,
-            mandelbrot_uniform_bind_group: mandelbrot_shader_bind_group,
-            mandelbrot_texture_buffer,
-            mandelbrot_texture_bind_group,
             last_screen_update: Instant::now(),
             mouse_position: (0.0, 0.0),
             is_fullscreen: false,
             zoom_speed: 0.995,
             mouse_left_button_pressed: false,
             mouse_right_button_pressed: false,
-            move_speed: (0.0, 0.0)
+            move_speed: (0.0, 0.0),
         }
     }
 
     fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
             self.size = new_size;
-            self.config.width = new_size.width;
-            self.config.height = new_size.height;
-            self.surface.configure(&self.device, &self.config);
-
-            // resize the mandelbrot_texture_buffer to the new size
-            // recreate the mandelbrot_texture_buffer
-            self.mandelbrot_texture_buffer = self.device.create_buffer(
-                &wgpu::BufferDescriptor {
-                    label: Some("Mandelbrot Texture Buffer"),
-                    size: (self.size.width * self.size.height * 4) as u64,
-                    usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-                    mapped_at_creation: false,
-                }
-            );
-            let mut mandelbrot_texture_data = vec![0u8; (self.size.width * self.size.height * 4) as usize];
-            self.queue.write_buffer(&self.mandelbrot_texture_buffer, 0, mandelbrot_texture_data.as_slice());
-            // recreate the mandelbrot_texture_bind_group and layout
-            let mandelbrot_texture_bind_group_layout = self.device.create_bind_group_layout(
-                &wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Mandelbrot Texture Bind Group Layout"),
-                    entries: &[
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Buffer {
-                                ty: wgpu::BufferBindingType::Storage { read_only: false },
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
-                            },
-                            count: None,
-                        },
-                    ],
-                }
-            );
-            self.mandelbrot_texture_bind_group = self.device.create_bind_group(
-                &wgpu::BindGroupDescriptor {
-                    label: Some("Mandelbrot Texture Bind Group"),
-                    layout: &mandelbrot_texture_bind_group_layout,
-                    entries: &[
-                        wgpu::BindGroupEntry {
-                            binding: 0,
-                            resource: self.mandelbrot_texture_buffer.as_entire_binding(),
-                        },
-                    ],
-                }
-            );
+            self.engine.resize(new_size);
             self.mandelbrot.height = self.size.height;
             self.mandelbrot.width = self.size.width;
             self.mandelbrot.must_redraw = 0;
@@ -405,6 +77,7 @@ impl Game {
     fn update(&mut self) {
         // add one to the mandelbrot seed
         self.mandelbrot.generation += 1.0;
+        self.engine.update();
 
         if self.zoom_speed != 1.0 {
             self.mandelbrot.zoom *= self.zoom_speed;
@@ -418,49 +91,15 @@ impl Game {
             println!("max iterations: {}", self.mandelbrot.maximum_iterations);
         }
         // update the mandelbrot shader buffer
-        self.queue.write_buffer(
-            &self.mandelbrot_uniform_buffer,
+        self.engine.queue.write_buffer(
+            &self.engine.uniform_buffers[0].buffer,
             0,
             bytemuck::cast_slice(&[self.mandelbrot]),
         );
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        let output = self.surface.get_current_texture()?;
-        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let mut encoder = self.device.create_command_encoder(
-            &wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-            }
-        );
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
-                        }),
-                        store: true,
-                    },
-                })],
-                depth_stencil_attachment: None,
-            });
-            render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0, &self.mandelbrot_uniform_bind_group, &[]);
-            render_pass.set_bind_group(1, &self.mandelbrot_texture_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.draw(0..self.num_vertices, 0..1);
-            // print the content of the storage buffer mandelbrot texture buffer to the console
-        }
-        // submit will accept anything that implements IntoIter
-        self.queue.submit(std::iter::once(encoder.finish()));
-        output.present();
+        self.engine.render().expect("TODO: panic message");
         if self.mandelbrot.must_redraw == 0 {
             self.mandelbrot.must_redraw = 1;
         }
