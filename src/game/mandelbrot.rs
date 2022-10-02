@@ -76,8 +76,8 @@ impl Default for Mandelbrot {
             center_delta: [0.0, 0.0],
             // near_orbit_coordinate: [-1.6, 0.0],
             near_orbit_coordinate: (
-                BigFloat::parse("-8.005649172439378601652614980053801645906e-1").unwrap(),
-                BigFloat::parse("1.766690913194066364854892309435084250781e-1").unwrap(),
+                BigFloat::parse("-8.005649172439378601652614980060010776762e-1").unwrap(),
+                BigFloat::parse("1.766690913194066364854892309438271746385e-1").unwrap(),
             ),
             epsilon: 0.0001,
             last_orbit_z: (0.0.into(),0.0.into()),

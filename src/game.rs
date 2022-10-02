@@ -50,16 +50,16 @@ impl Game {
         let mut engine = Engine::new(window).await;
         engine.add_buffer(
             BufferUsages::UNIFORM,
-            bytemuck::cast_slice(&[mandelbrot.get_shader_representation()])
+            bytemuck::cast_slice(&[mandelbrot.get_shader_representation()]),
         );
         let mandelbrot_texture_data = vec![0f32; (size.width * size.height) as usize];
         engine.add_buffer(
             BufferUsages::STORAGE,
-            bytemuck::cast_slice(&mandelbrot_texture_data)
+            bytemuck::cast_slice(&mandelbrot_texture_data),
         );
         engine.add_buffer(
             BufferUsages::STORAGE,
-            bytemuck::cast_slice(&mandelbrot.orbit_point_suite)
+            bytemuck::cast_slice(&mandelbrot.orbit_point_suite),
         );
         engine.create_pipeline();
         Self {
@@ -74,7 +74,7 @@ impl Game {
             mouse_right_button_pressed: false,
             move_speed: (0.0, 0.0),
             mandelbrot_texture: mandelbrot_texture_data,
-            last_frame_time: Duration::from_secs_f32(1.0/120.0),
+            last_frame_time: Duration::from_secs_f32(1.0 / 120.0),
         }
     }
 
@@ -87,7 +87,7 @@ impl Game {
             self.mandelbrot.must_redraw = 0;
             self.mandelbrot_texture.resize(
                 (self.size.width * self.size.height) as usize,
-                0.0
+                0.0,
             );
             self.engine.replace_buffer(
                 GameBuffer::MandelbrotTexture as usize,
@@ -104,7 +104,7 @@ impl Game {
     fn update(&mut self) {
         let time_since_last_screen_update = Instant::now() - self.last_screen_update;
         // add one to the mandelbrot seed
-        self.mandelbrot.generation += self.last_frame_time.as_secs_f32() * 300.0;
+        self.mandelbrot.generation += self.last_frame_time.as_secs_f32();
         if self.zoom_speed != 1.0 {
             self.mandelbrot.zoom *= 1.0 - (self.zoom_speed * self.last_frame_time.as_secs_f32());
             self.mandelbrot.must_redraw = 0;
@@ -113,10 +113,12 @@ impl Game {
         // mandelbrot max iterations is log_10 of the inverse of the zoom
         self.mandelbrot.set_maximum_iterations(
             (
-                1.0 + (1.0 / self.mandelbrot.zoom)
-            .log2()
-            .clamp(0.0, 100.0)
-            ) as u32 * 100 + 100
+                (
+                    1.0 + (1.0 / self.mandelbrot.zoom)
+                        .log(2.1)
+                        .clamp(0.0, 200.0)
+                ) * 100.0
+            ) as u32
         );
         // print max iterations to the console if it has changed
         if self.mandelbrot.maximum_iterations() != last_max_iterations {
@@ -127,12 +129,12 @@ impl Game {
         self.engine.replace_buffer(
             GameBuffer::Mandelbrot as usize,
             BufferUsages::UNIFORM,
-            bytemuck::cast_slice(&[self.mandelbrot.get_shader_representation()])
+            bytemuck::cast_slice(&[self.mandelbrot.get_shader_representation()]),
         );
         self.engine.replace_buffer(
             GameBuffer::MandelbrotOrbitPointSuite as usize,
             BufferUsages::STORAGE,
-            bytemuck::cast_slice(&self.mandelbrot.orbit_point_suite)
+            bytemuck::cast_slice(&self.mandelbrot.orbit_point_suite),
         );
         if self.mandelbrot.must_redraw == 0 {
             self.mandelbrot.must_redraw = 1;
@@ -283,7 +285,7 @@ pub async fn run() {
                 },
                 ..
             } => {
-                if(state.zoom_speed < 0.0) {
+                if (state.zoom_speed < 0.0) {
                     state.zoom_speed *= 1.1;
                 } else {
                     state.zoom_speed /= 1.1;

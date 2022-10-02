@@ -69,30 +69,31 @@ fn cmul(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
 fn colorize(coordinate: vec2<f32>, iterations: f32) -> vec4<f32> {
     var cycle = f32(mandelbrot.color_palette_scale);
     var color = vec3<f32>(0.0,0.0,0.0);
-    if(iterations < f32(mandelbrot.maximum_iterations)) {
-        var log_iterations = log2(iterations);
-        log_iterations = log_iterations * log_iterations;
-        var t = abs(1.0 - (log_iterations % cycle) * 2.0 / cycle);
-        // use a log scale to get a better color distribution
-        color = vec3<f32>(
-            0.5 + 0.5 * cos(t * 6.28 + coordinate.x + mandelbrot.generation / 1000.0),
-            0.5 + 0.5 * sin(t * 12.88 + sin(coordinate.y) + coordinate.y + mandelbrot.generation / 170.0),
-            0.5 + 0.5 * cos(t * 3.14 + cos(coordinate.x * 3.14) + coordinate.y + mandelbrot.generation / 50.0)
-        );
+    if(sqrt(iterations) % 2.0 < 1.0) {
+        if(iterations < f32(mandelbrot.maximum_iterations)) {
+            var log_iterations = sqrt(iterations);
+            log_iterations = log_iterations * log_iterations;
+            var t = abs(1.0 - (log_iterations % cycle) * 2.0 / cycle);
+            // use a log scale to get a better color distribution
+            color = vec3<f32>(
+                0.5 + 0.5 * cos(t * 6.28 + coordinate.x + mandelbrot.generation / 100.0),
+                0.5 + 0.5 * sin(t * 12.88 + sin(coordinate.y) + coordinate.y + mandelbrot.generation / 17.0),
+                0.5 + 0.5 * cos(t * 3.14 + cos(coordinate.x * 3.14) + coordinate.y + mandelbrot.generation / 50.0)
+            );
+        }
     }
     return vec4<f32>(color, 1.0);
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    var color: vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 1.0);
     var pixel = vec2<u32>(
         u32((in.coord.x + 1.0) / 2.0 * f32(mandelbrot.width)),
         u32((in.coord.y + 1.0) / 2.0 * f32(mandelbrot.height))
     );
     let index = pixel.y * mandelbrot.width + pixel.x;
-    var iteration = f32(mandelbrot.maximum_iterations);
     if(mandelbrot.must_redraw == 0u) {
+        var iteration = f32(mandelbrot.maximum_iterations);
         // draw a mandelbrot set
         var dc = vec2<f32>(
             mandelbrot.center_delta.x + in.coord.x * f32(mandelbrot.width) / f32(mandelbrot.height) * mandelbrot.zoom ,
