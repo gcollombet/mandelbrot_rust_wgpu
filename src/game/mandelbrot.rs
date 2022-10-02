@@ -116,15 +116,16 @@ impl Mandelbrot {
 
     pub fn calculate_orbit_point_suite(
         &self,
+        precision: usize,
     ) -> Vec<[f32; 2]> {
         let mut result = vec![];
-        result.resize(10000, [0.0, 0.0]);
+        result.resize(precision, [0.0, 0.0]);
         let mut z: (BigFloat, BigFloat) = (0.0.into(), 0.0.into());
         let two = BigFloat::parse("2.0").unwrap();
         let mu = self.mu.into();
         let c = self.near_orbit_coordinate;
         let mut i = 0;
-        while i < 10000 {
+        while i < precision {
             result[i as usize]=[z.0.to_f32(), z.1.to_f32()];
             // z = z * z + c;
             z = (
@@ -132,7 +133,7 @@ impl Mandelbrot {
                 z.0 * z.1 * two + c.1,
             );
             // calculate z.norm
-            let z_norm = (z.0 * z.0 + z.1 * z.1).sqrt();
+            let z_norm = (z.0 * z.0 + z.1 * z.1);
             if z_norm > mu {
                 break;
             }

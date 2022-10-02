@@ -58,7 +58,7 @@ impl Game {
             BufferUsages::STORAGE,
             bytemuck::cast_slice(&mandelbrot_texture_data)
         );
-        let mandelbrot_orbit_point_suite = mandelbrot.calculate_orbit_point_suite();
+        let mandelbrot_orbit_point_suite = mandelbrot.calculate_orbit_point_suite(10000);
         engine.add_buffer(
             BufferUsages::STORAGE,
             bytemuck::cast_slice(&mandelbrot_orbit_point_suite)
@@ -345,7 +345,7 @@ pub async fn run() {
                         state.size.width,
                         state.size.height,
                     );
-                    state.mandelbrot_orbit_point_suite = state.mandelbrot.calculate_orbit_point_suite();
+                    state.mandelbrot_orbit_point_suite = state.mandelbrot.calculate_orbit_point_suite(10000);
                     state.engine.replace_buffer(
                         2,
                         BufferUsages::STORAGE,
