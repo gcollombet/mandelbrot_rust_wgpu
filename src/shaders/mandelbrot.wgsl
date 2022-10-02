@@ -82,9 +82,9 @@ fn colorize(coordinate: vec2<f32>, iterations: f32) -> vec4<f32> {
 //            );
             let zoom_shift = iterations;
             color = vec3<f32>(
-                0.5 + 0.5 * cos(t * 6.28 + 1.4 + coordinate.x ),
+                0.5 + 0.5 * cos(t * 6.28 + 1.4 + coordinate.x - 0.5 ),
                 0.5 + 0.5 * sin(t * 5.88 - 3.14  + sin(coordinate.y)),
-                0.5 + 0.5 * cos(t * 3.14 - 3.14 + cos(coordinate.x * 3.14))
+                0.5 + 0.5 * cos(t * 3.14 - 3.14 + cos(coordinate.x * 3.14) - 0.5)
             );
         }
 //    }

@@ -31,6 +31,7 @@ pub struct MandelbrotShaderRepresentation {
 pub struct Mandelbrot {
     pub generation: f32,
     pub zoom: f32,
+    pub previous_zoom: f32,
     pub center_delta: [f32; 2],
     // the coordinate of the point in the complex plane in the center of the screen
     // pub center_coordinate: [f32; 2],
@@ -60,6 +61,8 @@ pub struct Mandelbrot {
 // x: -0.80087984, y: 0.1822858
 // -0.80087334, 0.18227617
 // -0.80266213, 0.18230489
+// BigFloat::parse("-8.005649172439378601652614980060010776762e-1").unwrap(),
+// BigFloat::parse("1.766690913194066364854892309438271746385e-1").unwrap(),
 impl Default for Mandelbrot {
     fn default() -> Self {
         let mut orbit_point_suite = Vec::new();
@@ -67,6 +70,7 @@ impl Default for Mandelbrot {
         Self {
             generation: 0.0,
             zoom: 100.0,
+            previous_zoom: 100.0,
             maximum_iterations: 10000,
             width: 0,
             height: 0,
@@ -76,8 +80,8 @@ impl Default for Mandelbrot {
             center_delta: [0.0, 0.0],
             // near_orbit_coordinate: [-1.6, 0.0],
             near_orbit_coordinate: (
-                BigFloat::parse("-8.005649172439378601652614980060010776762e-1").unwrap(),
-                BigFloat::parse("1.766690913194066364854892309438271746385e-1").unwrap(),
+                BigFloat::parse("-7.475923752064317130670890204311118186069e-1").unwrap(),
+                BigFloat::parse("8.440544207773073998562585116696206052408e-2").unwrap(),
             ),
             epsilon: 0.0001,
             last_orbit_z: (0.0.into(),0.0.into()),
