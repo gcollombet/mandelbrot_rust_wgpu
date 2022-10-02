@@ -53,6 +53,7 @@ impl Game {
             bytemuck::cast_slice(&[mandelbrot.get_shader_representation()]),
         );
         let mandelbrot_texture_data = vec![0f32; (size.width * size.height) as usize];
+        let mandelbrot_z_data = vec![0f32; (size.width * size.height) as usize];
         engine.add_buffer(
             BufferUsages::STORAGE,
             bytemuck::cast_slice(&mandelbrot_texture_data),
@@ -60,6 +61,10 @@ impl Game {
         engine.add_buffer(
             BufferUsages::STORAGE,
             bytemuck::cast_slice(&mandelbrot.orbit_point_suite),
+        );
+        engine.add_buffer(
+            BufferUsages::STORAGE,
+            bytemuck::cast_slice(&mandelbrot_z_data),
         );
         engine.create_pipeline();
         Self {
