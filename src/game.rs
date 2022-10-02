@@ -51,7 +51,7 @@ impl Game {
         let mut engine = Engine::new(window).await;
         engine.add_buffer(
             BufferUsages::UNIFORM,
-            bytemuck::cast_slice(&[mandelbrot])
+            bytemuck::cast_slice(&[mandelbrot.get_shader_representation()])
         );
         let mandelbrot_texture_data = vec![0f32; (size.width * size.height) as usize];
         engine.add_buffer(
@@ -124,7 +124,7 @@ impl Game {
         self.engine.replace_buffer(
             GameBuffer::Mandelbrot as usize,
             BufferUsages::UNIFORM,
-            bytemuck::cast_slice(&[self.mandelbrot])
+            bytemuck::cast_slice(&[self.mandelbrot.get_shader_representation()])
         );
         if self.mandelbrot.must_redraw == 0 {
             self.mandelbrot.must_redraw = 1;

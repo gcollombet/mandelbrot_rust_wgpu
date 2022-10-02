@@ -893,6 +893,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-bigfloat"
+version = "1.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb8e28d80ca8cfd5842a8fd84819abc5240beb5a0c62f46b8cd4c6b457600ae3"
+
+[[package]]
 name = "num-bigint"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1353,6 +1359,7 @@ dependencies = [
  "env_logger",
  "log",
  "num",
+ "num-bigfloat",
  "pollster",
  "wgpu",
  "winit",

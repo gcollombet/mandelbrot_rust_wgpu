@@ -1,10 +1,32 @@
+use std::convert::Into;
+use std::vec::Vec;
 use num::Complex;
-use num::complex::ComplexFloat;
+use num_bigfloat::BigFloat;
+
 
 // We need this for Rust to store our data correctly for the shaders
 #[repr(C)]
 // This is so we can store this in a buffer
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct MandelbrotShaderRepresentation {
+    generation: f32,
+    zoom: f32,
+    center_delta: [f32; 2],
+    // a small value corresponding to the maximum error tolerated for the calculation the Mandelbrot set
+    epsilon: f32,
+    // the number of iterations of the calculation of the Mandelbrot set
+    maximum_iterations: u32,
+    // the width of the screen
+    width: u32,
+    // the height of the screen
+    height: u32,
+    // a value used to calculate the maximum value to consider that the mathematics suite is divergent
+    mu: f32,
+    must_redraw: u32,
+    color_palette_scale: f32,
+    _padding: u32,
+}
+
 pub struct Mandelbrot {
     pub generation: f32,
     pub zoom: f32,
@@ -13,7 +35,7 @@ pub struct Mandelbrot {
     // pub center_coordinate: [f32; 2],
     // the coordinate of an orbit point in the complex plane that is in the Mandelbrot set
     // and that is near the coordinate of the point in the complex plane in the center of the screen
-    pub near_orbit_coordinate: [f64; 2],
+    pub near_orbit_coordinate: (BigFloat, BigFloat),
     // a small value corresponding to the maximum error tolerated for the calculation the Mandelbrot set
     pub epsilon: f32,
     // the number of iterations of the calculation of the Mandelbrot set
@@ -48,7 +70,10 @@ impl Default for Mandelbrot {
             color_palette_scale: 100.0,
             center_delta: [0.0, 0.0],
             // near_orbit_coordinate: [-1.6, 0.0],
-            near_orbit_coordinate: [-0.8005649172622006, 0.17666909128376448],
+            near_orbit_coordinate: (
+                BigFloat::parse("-8.005649172622005993657153645945603110431e-1").unwrap(),
+                BigFloat::parse("1.766690912837644817137005453984814297673e-1").unwrap(),
+            ),
             epsilon: 0.0001,
             z_square: 0.0,
         }
@@ -56,6 +81,22 @@ impl Default for Mandelbrot {
 }
 
 impl Mandelbrot {
+
+    pub fn get_shader_representation(& self) -> MandelbrotShaderRepresentation {
+        MandelbrotShaderRepresentation {
+            generation: self.generation,
+            zoom: self.zoom,
+            center_delta: self.center_delta,
+            epsilon: self.epsilon,
+            maximum_iterations: self.maximum_iterations,
+            width: self.width,
+            height: self.height,
+            mu: self.mu,
+            must_redraw: self.must_redraw,
+            color_palette_scale: self.color_palette_scale,
+            _padding: 0,
+        }
+    }
 
     pub fn center_at(
         &mut self,
@@ -78,19 +119,21 @@ impl Mandelbrot {
     ) -> Vec<[f32; 2]> {
         let mut result = vec![];
         result.resize(10000, [0.0, 0.0]);
-        let mut z = Complex::new(
-            0.0_f64,
-            0.0_f64,
-        );
-        let c = Complex::new(
-            self.near_orbit_coordinate[0],
-            self.near_orbit_coordinate[1],
-        );
+        let mut z: (BigFloat, BigFloat) = (0.0.into(), 0.0.into());
+        let two = BigFloat::parse("2.0").unwrap();
+        let mu = self.mu.into();
+        let c = self.near_orbit_coordinate;
         let mut i = 0;
         while i < 10000 {
-            result[i as usize]=[z.re() as f32, z.im() as f32];
-            z = z * z + c;
-            if z.norm() > self.mu as f64 {
+            result[i as usize]=[z.0.to_f32(), z.1.to_f32()];
+            // z = z * z + c;
+            z = (
+                z.0 * z.0 - z.1 * z.1 + c.0,
+                z.0 * z.1 * two + c.1,
+            );
+            // calculate z.norm
+            let z_norm = (z.0 * z.0 + z.1 * z.1).sqrt();
+            if z_norm > mu {
                 break;
             }
             i += 1;
@@ -102,13 +145,6 @@ impl Mandelbrot {
         self.center_delta[0] = 0.0;
         self.center_delta[1] = 0.0;
         self.must_redraw = 0;
-        // print to console the coordinates
-        println!(
-            "x: {}, y: {}, zoom: {}",
-            self.near_orbit_coordinate[0] as f64 + self.center_delta[0] as f64,
-            self.near_orbit_coordinate[1] as f64 + self.center_delta[1] as f64,
-            self.zoom
-        );
     }
 
     pub fn center_orbit_at(
@@ -119,18 +155,24 @@ impl Mandelbrot {
         window_height: u32,
     ) {
         let normalized_mouse_vector = (
-            (mouse_x as f64 - (window_width as f64 / 2.0)) / (window_width as f64 / 2.0),
-            (mouse_y as f64 - (window_height as f64 / 2.0)) / (window_height as f64 / 2.0) * -1.0,
+            (BigFloat::from_f64(mouse_x as f64) - (BigFloat::from_f64(window_width as f64) / BigFloat::parse("2.0").unwrap())) / (BigFloat::from_f64(window_width as f64)  / BigFloat::parse("2.0").unwrap()),
+            (BigFloat::from_f64(mouse_y as f64) - (BigFloat::from_f64(window_height as f64) / BigFloat::parse("2.0").unwrap())) / (BigFloat::from_f64(window_height as f64)  / BigFloat::parse("2.0").unwrap()) * BigFloat::parse("-1.0").unwrap(),
         );
         let delta = (
-            normalized_mouse_vector.0 * (self.width as f64 / self.height as f64) * self.zoom as f64,
-            normalized_mouse_vector.1 * self.zoom as f64,
+            normalized_mouse_vector.0 * (BigFloat::from_f64(self.width as f64) / BigFloat::from_f64(self.height as f64)) * BigFloat::from_f64(self.zoom as f64),
+            normalized_mouse_vector.1 * BigFloat::from_f64(self.zoom as f64) ,
         );
-        self.near_orbit_coordinate[0] += delta.0 + self.center_delta[0] as f64;
-        self.near_orbit_coordinate[1] += delta.1 + self.center_delta[1] as f64;
-        self.center_delta[0] = -delta.0 as f32;
-        self.center_delta[1] = -delta.1 as f32;
+        self.near_orbit_coordinate.0 += delta.0 + BigFloat::from_f64(self.center_delta[0] as f64);
+        self.near_orbit_coordinate.1 += delta.1 + BigFloat::from_f64(self.center_delta[1] as f64);
+        self.center_delta[0] = -delta.0.to_f32();
+        self.center_delta[1] = -delta.1.to_f32();
         self.must_redraw = 0;
+        println!(
+            "x: {}, y: {}, zoom: {}",
+            self.near_orbit_coordinate.0,
+            self.near_orbit_coordinate.1,
+            self.zoom
+        );
     }
 
     pub fn zoom_in(&mut self, zoom_factor: f32) {

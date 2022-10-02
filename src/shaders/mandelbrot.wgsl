@@ -23,7 +23,6 @@ struct MandelbrotUniform {
     generation : f32,
     zoom: f32,
     center_delta: vec2<f32>,
-    near_orbit_coordinate: vec4<f32>,
     epsilon: f32,
     maximum_iterations: u32,
     width: u32,
