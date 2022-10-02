@@ -75,10 +75,16 @@ fn colorize(coordinate: vec2<f32>, iterations: f32) -> vec4<f32> {
             log_iterations = log_iterations * log_iterations;
             var t = abs(1.0 - (log_iterations % cycle) * 2.0 / cycle);
             // use a log scale to get a better color distribution
+//            color = vec3<f32>(
+//                0.5 + 0.5 * cos(t * 6.28 + coordinate.x + mandelbrot.generation / 3.3),
+//                0.5 + 0.5 * sin(t * 12.88 + sin(coordinate.y) + coordinate.y + mandelbrot.generation / 0.6),
+//                0.5 + 0.5 * cos(t * 3.14 + cos(coordinate.x * 3.14) + coordinate.y + mandelbrot.generation / 1.5)
+//            );
+            let zoom_shift = iterations;
             color = vec3<f32>(
-                0.5 + 0.5 * cos(t * 6.28 + coordinate.x + mandelbrot.generation / 3.3),
-                0.5 + 0.5 * sin(t * 12.88 + sin(coordinate.y) + coordinate.y + mandelbrot.generation / 0.6),
-                0.5 + 0.5 * cos(t * 3.14 + cos(coordinate.x * 3.14) + coordinate.y + mandelbrot.generation / 1.5)
+                0.5 + 0.5 * cos(t * 6.28 + 1.4 + coordinate.x ),
+                0.5 + 0.5 * sin(t * 5.88 - 3.14  + sin(coordinate.y)),
+                0.5 + 0.5 * cos(t * 3.14 - 3.14 + cos(coordinate.x * 3.14))
             );
         }
 //    }
@@ -92,6 +98,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         u32((in.coord.y + 1.0) / 2.0 * f32(mandelbrot.height))
     );
     let index = pixel.y * mandelbrot.width + pixel.x;
+    let color = colorize(in.coord, mandelbrotTexture[index]);
     if(mandelbrot.must_redraw == 0u) {
         var iteration = f32(mandelbrot.maximum_iterations);
         // draw a mandelbrot set
@@ -129,6 +136,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         // calculate the iteration with the intensity
         mandelbrotTexture[index] = i;
     }
-    i = mandelbrotTexture[index];
-    return colorize(in.coord, i);
+    return color;
 }
