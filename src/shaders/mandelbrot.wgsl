@@ -69,19 +69,19 @@ fn cmul(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
 fn colorize(coordinate: vec2<f32>, iterations: f32) -> vec4<f32> {
     var cycle = f32(mandelbrot.color_palette_scale);
     var color = vec3<f32>(0.0,0.0,0.0);
-    if(sqrt(iterations) % 2.0 < 1.0) {
+//    if(sqrt(iterations) % 2.0 < 1.0) {
         if(iterations < f32(mandelbrot.maximum_iterations)) {
             var log_iterations = sqrt(iterations);
             log_iterations = log_iterations * log_iterations;
             var t = abs(1.0 - (log_iterations % cycle) * 2.0 / cycle);
             // use a log scale to get a better color distribution
             color = vec3<f32>(
-                0.5 + 0.5 * cos(t * 6.28 + coordinate.x + mandelbrot.generation / 100.0),
-                0.5 + 0.5 * sin(t * 12.88 + sin(coordinate.y) + coordinate.y + mandelbrot.generation / 17.0),
-                0.5 + 0.5 * cos(t * 3.14 + cos(coordinate.x * 3.14) + coordinate.y + mandelbrot.generation / 50.0)
+                0.5 + 0.5 * cos(t * 6.28 + coordinate.x + mandelbrot.generation / 3.3),
+                0.5 + 0.5 * sin(t * 12.88 + sin(coordinate.y) + coordinate.y + mandelbrot.generation / 0.6),
+                0.5 + 0.5 * cos(t * 3.14 + cos(coordinate.x * 3.14) + coordinate.y + mandelbrot.generation / 1.5)
             );
         }
-    }
+//    }
     return vec4<f32>(color, 1.0);
 }
 
