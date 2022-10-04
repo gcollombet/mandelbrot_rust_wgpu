@@ -1,5 +1,8 @@
 mod engine;
 mod mandelbrot;
+mod game_state;
+mod window_state;
+mod mamndelbrot_state;
 
 use std::time::{Duration, Instant};
 use winit::event::{
@@ -11,6 +14,9 @@ use engine::Engine;
 use mandelbrot::Mandelbrot;
 use wgpu::BufferUsages;
 use winit::event_loop::ControlFlow;
+use game_state::GameState;
+use window_state::WindowState;
+use mamndelbrot_state::MandelbrotState;
 
 // create an enum with the name of the different buffer
 enum GameBuffer {
@@ -19,21 +25,8 @@ enum GameBuffer {
     MandelbrotOrbitPointSuite = 2,
 }
 
-pub struct WindowState {
-    size: winit::dpi::PhysicalSize<u32>,
-    is_fullscreen: bool,
-    mouse_position: (isize, isize),
-    mouse_left_button_pressed: bool,
-    mouse_right_button_pressed: bool,
-}
-
-pub struct MandelbrotState {
-    mandelbrot: Mandelbrot,
-    zoom_speed: f32,
-    move_speed: (f32, f32),
-}
-
-pub struct Game {
+pub struct Game<'a> {
+    window: &'a Window,
     window_state: WindowState,
     mandelbrot_state: MandelbrotState,
     engine: Engine,
@@ -42,9 +35,9 @@ pub struct Game {
     last_frame_time: Duration,
 }
 
-impl Game {
+impl<'a> Game<'a> {
     // Creating some of the wgpu types requires async code
-    pub async fn new(window: &Window) -> Self {
+    pub async fn new(window: &'a Window) -> Game<'a> {
         let size = window.inner_size();
         // The instance is a handle to our GPU
         // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
@@ -70,20 +63,11 @@ impl Game {
         );
         engine.create_pipeline();
         Self {
+            window,
             engine,
-            mandelbrot_state: MandelbrotState {
-                mandelbrot,
-                zoom_speed: 0.9,
-                move_speed: (0.0, 0.0),
-            },
+            mandelbrot_state: MandelbrotState::new(size),
             last_screen_update: Instant::now(),
-            window_state: WindowState {
-                size,
-                is_fullscreen: false,
-                mouse_position: (0, 0),
-                mouse_left_button_pressed: false,
-                mouse_right_button_pressed: false,
-            },
+            window_state: WindowState::new(size),
             mandelbrot_texture: mandelbrot_texture_data,
             last_frame_time: Duration::from_secs_f32(1.0 / 120.0),
         }
@@ -91,11 +75,8 @@ impl Game {
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
-            self.window_state.size = new_size;
             self.engine.resize(new_size);
-            self.mandelbrot_state.mandelbrot.height = self.window_state.size.height;
-            self.mandelbrot_state.mandelbrot.width = self.window_state.size.width;
-            self.mandelbrot_state.mandelbrot.must_redraw = 0;
+            // self.mandelbrot_state.mandelbrot.must_redraw = 0;
             self.mandelbrot_texture.resize(
                 (self.window_state.size.width * self.window_state.size.height) as usize,
                 0.0,
@@ -110,7 +91,7 @@ impl Game {
 
     pub fn input(&mut self, event: Event<()>, control_flow: &mut ControlFlow) {
         match event {
-            Event::RedrawRequested(window_id) if window_id == self.window_state.window.id() => {
+            Event::RedrawRequested(window_id) => {
                 self.update();
                 match self.render() {
                     Ok(_) => {}
@@ -121,6 +102,31 @@ impl Game {
                     // All other errors (Outdated, Timeout) should be resolved by the next frame
                     Err(e) => eprintln!("{:?}", e),
                 }
+            }
+            Event::MainEventsCleared => {
+                // this is the time between screen updates
+                let time_between_screen_updates = Duration::from_millis(1000 / 120);
+                // this is the time between the last screen update and now
+                let time_since_last_screen_update = Instant::now() - self.last_screen_update;
+                self.last_frame_time = time_since_last_screen_update;
+                self.last_screen_update = Instant::now();
+                // this is the time until the next screen update
+                // if the time since the last screen update is greater than the time between screen updates
+                if time_since_last_screen_update < time_between_screen_updates {
+                    // if the time since the last screen update is less than the time between screen updates
+                    // then we need to wait until the next screen update
+                    // so we set the time until the next screen update
+                    let time_until_next_screen_update =
+                        time_between_screen_updates - time_since_last_screen_update;
+                    // update the last screen update time
+                    if time_until_next_screen_update > Duration::from_millis(0) {
+                        // and we set the control flow to wait until the next screen update
+                        *control_flow =
+                            ControlFlow::WaitUntil(Instant::now() + time_until_next_screen_update);
+                    }
+                }
+                // request a redraw
+                self.window.request_redraw();
             }
             _ => {}
         }
@@ -140,8 +146,8 @@ impl Game {
         self.mandelbrot_state.mandelbrot.set_maximum_iterations(
             ((1.0
                 + (1.0 / self.mandelbrot_state.mandelbrot.zoom)
-                    .log(2.1)
-                    .clamp(0.0, 200.0))
+                .log(2.1)
+                .clamp(0.0, 200.0))
                 * 100.0) as u32,
         );
         // print max iterations to the console if it has changed

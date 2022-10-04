@@ -20,8 +20,10 @@ struct VertexOutput {
 
 // Define the uniform buffer from Mandelbrot Shader struct
 struct MandelbrotUniform {
-    generation : f32,
+    generation : u32,
+    time_elapsed: f32,
     zoom: f32,
+    previous_zoom: f32,
     center_delta: vec2<f32>,
     epsilon: f32,
     maximum_iterations: u32,
@@ -30,6 +32,7 @@ struct MandelbrotUniform {
     mu: f32,
     must_redraw: u32,
     color_palette_scale: f32,
+    _padding: u32,
 };
 
 @group(0) @binding(0)
@@ -63,33 +66,35 @@ fn cmul(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
     return vec2<f32>(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
 }
 
-// a method that find the nearest minibrot to a given point
-
 // create a function that colorize a pixel based on the number of iterations has seen below
-fn colorize(coordinate: vec2<f32>, iterations: f32) -> vec4<f32> {
+fn colorize(coordinate: vec2<f32>, dc: vec2<f32>, iterations: f32) -> vec4<f32> {
     var cycle = f32(mandelbrot.color_palette_scale);
     var color = vec3<f32>(0.0,0.0,0.0);
-    if(sqrt(iterations) % 2.0 < 1.0) {
+//    if(sqrt(iterations) % 2.0 < 1.0) {
         if(iterations < f32(mandelbrot.maximum_iterations)) {
             var log_iterations = sqrt(iterations);
             log_iterations = log_iterations * log_iterations;
             var t = abs(1.0 - (log_iterations % cycle) * 2.0 / cycle);
             // use a log scale to get a better color distribution
 //            color = vec3<f32>(
-//                0.5 + 0.5 * cos(t * 6.28 + coordinate.x + mandelbrot.generation / 3.3),
-//                0.5 + 0.5 * sin(t * 12.88 + sin(coordinate.y) + coordinate.y + mandelbrot.generation / 0.6),
-//                0.5 + 0.5 * cos(t * 3.14 + cos(coordinate.x * 3.14) + coordinate.y + mandelbrot.generation / 1.5)
+//                0.5 + 0.5 * cos(t * 6.28 + coordinate.x + mandelbrot.time_elapsed / 3.3),
+//                0.5 + 0.5 * sin(t * 12.88 + sin(coordinate.y) + coordinate.y + mandelbrot.time_elapsed / 0.6),
+//                0.5 + 0.5 * cos(t * 3.14 + cos(coordinate.x * 3.14) + coordinate.y + mandelbrot.time_elapsed / 1.5)
 //            );
             let zoom_shift = iterations;
+            let wideness = 0.7;
+//            let wideness = 0.2 + abs(cos(mandelbrot.time_elapsed / 4.0)) * 1.5;
+            var dx = coordinate.x / 8.0 + cos(mandelbrot.time_elapsed / 4.0);
+//            dx= dx - modulo(dx, 3.14);
+            var dy = coordinate.y / 8.0 + cos(mandelbrot.time_elapsed / 8.0);
+//            dy= dy - modulo(dy, 3.14);
             color = vec3<f32>(
-                0.5 + 0.5 * cos(t * 6.28 + 1.4 + coordinate.x - 0.5 ),
-                0.5 + 0.5 * sin(t * 5.88 - 3.14  + sin(coordinate.y)),
-                0.5 + 0.5 * cos(t * 3.14 - 3.14 + cos(coordinate.x * 3.14) - 0.5)
+                0.5 + 0.5 * cos(t * wideness * 6.28 + 1.4 + dx - 0.5 ),
+                0.5 + 0.5 * sin(t * wideness * 5.88 - 3.14 + sin(dy)),
+                0.5 + 0.5 * cos(t * wideness * 3.14 - 3.14 + cos(dx * 3.14) - 0.5)
             );
-            // make the color saturation depend on the number of iterations
-            
         }
-    }
+//    }
     return vec4<f32>(color, 1.0);
 }
 
@@ -99,17 +104,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         u32((in.coord.x + 1.0) / 2.0 * f32(mandelbrot.width)),
         u32((in.coord.y + 1.0) / 2.0 * f32(mandelbrot.height))
     );
-    // get the index of the pixel in the texture
     var index = pixel.y * mandelbrot.width + pixel.x;
-
-    let color = colorize(in.coord, mandelbrotTexture[index]);
+    var dc = vec2<f32>(
+        mandelbrot.center_delta.x + in.coord.x * f32(mandelbrot.width) / f32(mandelbrot.height) * mandelbrot.zoom ,
+        mandelbrot.center_delta.y + in.coord.y * mandelbrot.zoom
+    );
+    var color = colorize(in.coord, dc, mandelbrotTexture[index]);
     if(mandelbrot.must_redraw == 0u) {
         var iteration = f32(mandelbrot.maximum_iterations);
         // draw a mandelbrot set
-        var dc = vec2<f32>(
-            mandelbrot.center_delta.x + in.coord.x * f32(mandelbrot.width) / f32(mandelbrot.height) * mandelbrot.zoom ,
-            mandelbrot.center_delta.y + in.coord.y * mandelbrot.zoom
-        );
         var z = mandelbrotOrbitPointSuite[0];
         var dz = vec2<f32>(0.0, 0.0);
         var i = 0.0;

@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+use std::rc::Rc;
 use std::time::{Duration, Instant};
 use wgpu::BufferUsages;
 use winit::event::{
@@ -19,8 +21,10 @@ pub async fn run() {
         .to_rgba8();
     // add an icon to the window
     window.set_window_icon(Some(Icon::from_rgba(icon.into_raw(), 256, 256).unwrap()));
-    let mut state = Game::new(&window).await;
-    event_loop.run(move |event, _, control_flow| state.input(event, control_flow));
+
+    // create a reference counted pointer to the window
+    let mut game = Game::new(&window.clone()).await;
+    event_loop.run(move |event, _, control_flow| game.input(event, control_flow));
 }
 
 //     match event {
