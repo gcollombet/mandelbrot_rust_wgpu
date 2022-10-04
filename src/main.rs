@@ -1,7 +1,8 @@
 extern crate core;
 
 mod game;
+mod runner;
 
 fn main() {
-    pollster::block_on(game::run());
+    pollster::block_on(runner::run());
 }

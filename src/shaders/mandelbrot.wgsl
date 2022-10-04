@@ -69,7 +69,7 @@ fn cmul(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
 fn colorize(coordinate: vec2<f32>, iterations: f32) -> vec4<f32> {
     var cycle = f32(mandelbrot.color_palette_scale);
     var color = vec3<f32>(0.0,0.0,0.0);
-//    if(sqrt(iterations) % 2.0 < 1.0) {
+    if(sqrt(iterations) % 2.0 < 1.0) {
         if(iterations < f32(mandelbrot.maximum_iterations)) {
             var log_iterations = sqrt(iterations);
             log_iterations = log_iterations * log_iterations;
@@ -86,8 +86,10 @@ fn colorize(coordinate: vec2<f32>, iterations: f32) -> vec4<f32> {
                 0.5 + 0.5 * sin(t * 5.88 - 3.14  + sin(coordinate.y)),
                 0.5 + 0.5 * cos(t * 3.14 - 3.14 + cos(coordinate.x * 3.14) - 0.5)
             );
+            // make the color saturation depend on the number of iterations
+            
         }
-//    }
+    }
     return vec4<f32>(color, 1.0);
 }
 
@@ -97,7 +99,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         u32((in.coord.x + 1.0) / 2.0 * f32(mandelbrot.width)),
         u32((in.coord.y + 1.0) / 2.0 * f32(mandelbrot.height))
     );
-    let index = pixel.y * mandelbrot.width + pixel.x;
+    // get the index of the pixel in the texture
+    var index = pixel.y * mandelbrot.width + pixel.x;
+
     let color = colorize(in.coord, mandelbrotTexture[index]);
     if(mandelbrot.must_redraw == 0u) {
         var iteration = f32(mandelbrot.maximum_iterations);
