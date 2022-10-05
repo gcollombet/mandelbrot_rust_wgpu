@@ -10,7 +10,8 @@ use num_bigfloat::BigFloat;
 // This is so we can store this in a buffer
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct MandelbrotShaderRepresentation {
-    generation: f32,
+    generation: u32,
+    time_elapsed: f32,
     zoom: f32,
     center_delta: [f32; 2],
     // a small value corresponding to the maximum error tolerated for the calculation the Mandelbrot set
@@ -25,12 +26,13 @@ pub struct MandelbrotShaderRepresentation {
     mu: f32,
     must_redraw: u32,
     color_palette_scale: f32,
-    _padding: u32,
+    _padding: u64,
 }
 
 pub struct Mandelbrot {
-    pub generation: f32,
-    pub zoom: f32,
+    pub generation: u32,
+    pub time_elapsed: f32,
+    zoom: f32,
     pub previous_zoom: f32,
     pub center_delta: [f32; 2],
     // the coordinate of the point in the complex plane in the center of the screen
@@ -68,7 +70,8 @@ impl Default for Mandelbrot {
         let mut orbit_point_suite = Vec::new();
         orbit_point_suite.resize_with(50000, || [0.0, 0.0]);
         Self {
-            generation: 0.0,
+            generation: 0,
+            time_elapsed: 0.0,
             zoom: 100.0,
             previous_zoom: 100.0,
             maximum_iterations: 10000,
@@ -96,6 +99,7 @@ impl Mandelbrot {
     pub fn get_shader_representation(& self) -> MandelbrotShaderRepresentation {
         MandelbrotShaderRepresentation {
             generation: self.generation,
+            time_elapsed: self.time_elapsed,
             zoom: self.zoom,
             center_delta: self.center_delta,
             epsilon: self.epsilon,
@@ -140,7 +144,19 @@ impl Mandelbrot {
         self.must_redraw = 0;
     }
 
-    pub fn update(&mut self) {
+    pub fn zoom(&mut self) -> f32 {
+        self.zoom
+    }
+
+    pub fn set_zoom(&mut self, zoom: f32) -> &mut Self {
+        self.zoom = zoom;
+        self.must_redraw = 0;
+        self
+    }
+
+    pub fn update(&mut self, delta_time: f32) {
+        self.generation += 1;
+        self.time_elapsed += delta_time;
         self.calculate_orbit_point_suite(true);
     }
 

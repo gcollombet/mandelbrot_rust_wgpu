@@ -23,7 +23,6 @@ struct MandelbrotUniform {
     generation : u32,
     time_elapsed: f32,
     zoom: f32,
-    previous_zoom: f32,
     center_delta: vec2<f32>,
     epsilon: f32,
     maximum_iterations: u32,
@@ -32,7 +31,6 @@ struct MandelbrotUniform {
     mu: f32,
     must_redraw: u32,
     color_palette_scale: f32,
-    _padding: u32,
 };
 
 @group(0) @binding(0)

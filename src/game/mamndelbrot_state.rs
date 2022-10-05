@@ -1,11 +1,13 @@
+use wgpu::BufferUsages;
 use crate::game::game_state::GameState;
-use crate::game::Mandelbrot;
+use crate::game::{GameBuffer, Mandelbrot};
 use crate::game::Game;
 use winit::dpi::PhysicalSize;
 
 use winit::event::{
     ElementState, Event, KeyboardInput, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowEvent,
 };
+use crate::game::engine::Engine;
 
 pub struct MandelbrotState {
     mandelbrot: Mandelbrot,
@@ -14,8 +16,36 @@ pub struct MandelbrotState {
 }
 
 impl GameState for MandelbrotState {
-    fn update(&mut self, game: &mut Game) {
-        todo!()
+    fn update(&mut self, engine: &mut Engine, delta_time: f32) {
+        let zoom = self.mandelbrot.zoom();
+        if self.zoom_speed != 1.0 {
+            self.mandelbrot.set_zoom(
+                zoom
+                * (
+                    1.0
+                    - (self.zoom_speed * delta_time)
+                )
+            );
+            self.mandelbrot.must_redraw = 0;
+        }
+        self.mandelbrot.set_maximum_iterations(
+            ((1.0
+                + (1.0 / zoom)
+                .log(2.1)
+                .clamp(0.0, 200.0))
+                * 100.0) as u32,
+        );
+        self.mandelbrot.update(delta_time);
+        engine.replace_buffer(
+            GameBuffer::Mandelbrot as usize,
+            BufferUsages::UNIFORM,
+            bytemuck::cast_slice(&[self.mandelbrot.get_shader_representation()]),
+        );
+        engine.replace_buffer(
+            GameBuffer::MandelbrotOrbitPointSuite as usize,
+            BufferUsages::STORAGE,
+            bytemuck::cast_slice(&self.mandelbrot.orbit_point_suite),
+        );
     }
 
     fn input(&mut self, event: &Event<()>, game: &mut Game) {

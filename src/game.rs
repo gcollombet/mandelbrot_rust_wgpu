@@ -4,6 +4,8 @@ mod game_state;
 mod window_state;
 mod mamndelbrot_state;
 
+use std::borrow::Borrow;
+use std::rc::Rc;
 use std::time::{Duration, Instant};
 use winit::event::{
     ElementState, Event, KeyboardInput, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowEvent,
@@ -25,24 +27,29 @@ enum GameBuffer {
     MandelbrotOrbitPointSuite = 2,
 }
 
-pub struct Game<'a> {
-    window: &'a Window,
+pub struct Game {
+    window: Rc<Window>,
     window_state: WindowState,
     mandelbrot_state: MandelbrotState,
     engine: Engine,
     mandelbrot_texture: Vec<f32>,
     last_screen_update: Instant,
-    last_frame_time: Duration,
+    pub last_frame_time: Duration,
 }
 
-impl<'a> Game<'a> {
+impl Game {
+
+    pub fn engine(&self) -> &Engine {
+        &self.engine
+    }
+
     // Creating some of the wgpu types requires async code
-    pub async fn new(window: &'a Window) -> Game<'a> {
+    pub async fn new(window: Rc<Window>) -> Self {
         let size = window.inner_size();
         // The instance is a handle to our GPU
         // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
         let mut mandelbrot = Mandelbrot::new(10, size.width, size.height);
-        let mut engine = Engine::new(window).await;
+        let mut engine = Engine::new(window.borrow()).await;
         engine.add_buffer(
             BufferUsages::UNIFORM,
             bytemuck::cast_slice(&[mandelbrot.get_shader_representation()]),
@@ -78,7 +85,7 @@ impl<'a> Game<'a> {
             self.engine.resize(new_size);
             // self.mandelbrot_state.mandelbrot.must_redraw = 0;
             self.mandelbrot_texture.resize(
-                (self.window_state.size.width * self.window_state.size.height) as usize,
+                (self.window.inner_size().width * self.window.inner_size().height) as usize,
                 0.0,
             );
             self.engine.replace_buffer(
@@ -91,12 +98,12 @@ impl<'a> Game<'a> {
 
     pub fn input(&mut self, event: Event<()>, control_flow: &mut ControlFlow) {
         match event {
-            Event::RedrawRequested(window_id) => {
+            Event::RedrawRequested(window_id) if window_id == self.window.id() => {
                 self.update();
                 match self.render() {
                     Ok(_) => {}
                     // Reconfigure the surface if lost
-                    Err(wgpu::SurfaceError::Lost) => self.resize(self.window_state.size),
+                    Err(wgpu::SurfaceError::Lost) => self.resize(self.window.inner_size()),
                     // The system is out of memory, we should probably quit
                     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                     // All other errors (Outdated, Timeout) should be resolved by the next frame
@@ -133,45 +140,9 @@ impl<'a> Game<'a> {
     }
 
     pub fn update(&mut self) {
-        let time_since_last_screen_update = Instant::now() - self.last_screen_update;
-        // add one to the mandelbrot seed
-        self.mandelbrot_state.mandelbrot.generation += self.last_frame_time.as_secs_f32();
-        if self.mandelbrot_state.zoom_speed != 1.0 {
-            self.mandelbrot_state.mandelbrot.zoom *=
-                1.0 - (self.mandelbrot_state.zoom_speed * self.last_frame_time.as_secs_f32());
-            self.mandelbrot_state.mandelbrot.must_redraw = 0;
-        }
-        let last_max_iterations = self.mandelbrot_state.mandelbrot.maximum_iterations();
-        // mandelbrot max iterations is log_10 of the inverse of the zoom
-        self.mandelbrot_state.mandelbrot.set_maximum_iterations(
-            ((1.0
-                + (1.0 / self.mandelbrot_state.mandelbrot.zoom)
-                .log(2.1)
-                .clamp(0.0, 200.0))
-                * 100.0) as u32,
-        );
-        // print max iterations to the console if it has changed
-        if self.mandelbrot_state.mandelbrot.maximum_iterations() != last_max_iterations {
-            println!(
-                "max iterations: {}",
-                self.mandelbrot_state.mandelbrot.maximum_iterations()
-            );
-        } else {
-            self.mandelbrot_state.mandelbrot.update();
-        }
-        self.engine.replace_buffer(
-            GameBuffer::Mandelbrot as usize,
-            BufferUsages::UNIFORM,
-            bytemuck::cast_slice(&[self.mandelbrot_state.mandelbrot.get_shader_representation()]),
-        );
-        self.engine.replace_buffer(
-            GameBuffer::MandelbrotOrbitPointSuite as usize,
-            BufferUsages::STORAGE,
-            bytemuck::cast_slice(&self.mandelbrot_state.mandelbrot.orbit_point_suite),
-        );
-        if self.mandelbrot_state.mandelbrot.must_redraw == 0 {
-            self.mandelbrot_state.mandelbrot.must_redraw = 1;
-        }
+        let delta_time = self.last_frame_time.as_secs_f32();
+        self.window_state.update(&mut self.engine, delta_time);
+        self.mandelbrot_state.update(&mut self.engine, delta_time);
         self.engine.update();
     }
 

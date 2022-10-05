@@ -21,9 +21,9 @@ pub async fn run() {
         .to_rgba8();
     // add an icon to the window
     window.set_window_icon(Some(Icon::from_rgba(icon.into_raw(), 256, 256).unwrap()));
-
+    let window = Rc::new(window);
     // create a reference counted pointer to the window
-    let mut game = Game::new(&window.clone()).await;
+    let mut game = Game::new(window.clone()).await;
     event_loop.run(move |event, _, control_flow| game.input(event, control_flow));
 }
 
