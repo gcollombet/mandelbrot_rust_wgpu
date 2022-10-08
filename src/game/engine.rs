@@ -6,6 +6,7 @@ use wgpu::{BufferUsages, ShaderModule};
 use wgpu::util::DeviceExt;
 use bind_buffer::BindBuffer;
 use crate::game::engine::vertex::{Vertex, VERTICES};
+use crate::game::to_buffer_representation::ToBufferRepresentation;
 
 pub struct Engine {
     surface: wgpu::Surface,
@@ -92,7 +93,7 @@ impl Engine {
     }
 
     pub fn update(&mut self) {
-        // TODO
+        // self.buffers.iter_mut().for_each(|b| b.update( &self.queue));
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -137,23 +138,17 @@ impl Engine {
         Ok(())
     }
 
-    pub fn replace_buffer(
+    pub fn update_buffer(
         &mut self,
         index: usize,
-        usage: BufferUsages,
-        data: &[u8],
     ) {
-        self.buffers[index] = BindBuffer::new(
-            &self.device,
-            usage,
-            data,
-        );
+        self.buffers[index].update(&self.queue);
     }
 
     pub fn add_buffer(
         &mut self, usage:
         BufferUsages,
-        data: &[u8],
+        data: Box<dyn ToBufferRepresentation>,
     ) {
         self.buffers.push(
             BindBuffer::new(

@@ -867,6 +867,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "mandelbrot"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "env_logger",
+ "image",
+ "log",
+ "num",
+ "num-bigfloat",
+ "pollster",
+ "to_buffer_representation_derive",
+ "wgpu",
+ "winit",
+]
+
+[[package]]
 name = "memchr"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1594,27 +1610,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "to_buffer_representation_derive"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "toml"
 version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d82e1a7758622a465f8cee077614c73484dac5b836c02ff6a40d5d1010324d7"
 dependencies = [
  "serde",
-]
-
-[[package]]
-name = "turtles"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "env_logger",
- "image",
- "log",
- "num",
- "num-bigfloat",
- "pollster",
- "wgpu",
- "winit",
 ]
 
 [[package]]

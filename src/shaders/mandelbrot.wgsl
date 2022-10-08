@@ -79,7 +79,6 @@ fn colorize(coordinate: vec2<f32>, dc: vec2<f32>, iterations: f32) -> vec4<f32> 
 //                0.5 + 0.5 * sin(t * 12.88 + sin(coordinate.y) + coordinate.y + mandelbrot.time_elapsed / 0.6),
 //                0.5 + 0.5 * cos(t * 3.14 + cos(coordinate.x * 3.14) + coordinate.y + mandelbrot.time_elapsed / 1.5)
 //            );
-            let zoom_shift = iterations;
             let wideness = 0.7;
 //            let wideness = 0.2 + abs(cos(mandelbrot.time_elapsed / 4.0)) * 1.5;
             var dx = coordinate.x / 8.0 + cos(mandelbrot.time_elapsed / 4.0);

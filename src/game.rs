@@ -3,6 +3,7 @@ mod mandelbrot;
 mod game_state;
 mod window_state;
 mod mamndelbrot_state;
+mod to_buffer_representation;
 
 use std::borrow::Borrow;
 use std::rc::Rc;
@@ -32,7 +33,6 @@ pub struct Game {
     window_state: WindowState,
     mandelbrot_state: MandelbrotState,
     engine: Engine,
-    mandelbrot_texture: Vec<f32>,
     last_screen_update: Instant,
     pub last_frame_time: Duration,
 }
@@ -46,36 +46,28 @@ impl Game {
     // Creating some of the wgpu types requires async code
     pub async fn new(window: Rc<Window>) -> Self {
         let size = window.inner_size();
-        // The instance is a handle to our GPU
-        // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
-        let mut mandelbrot = Mandelbrot::new(10, size.width, size.height);
         let mut engine = Engine::new(window.borrow()).await;
+        let mandelbrot_state = MandelbrotState::new(size, &mut engine);
+        let mandelbrot = Mandelbrot::new(100, size.width, size.height);
         engine.add_buffer(
             BufferUsages::UNIFORM,
-            bytemuck::cast_slice(&[mandelbrot.get_shader_representation()]),
-        );
-        let mandelbrot_texture_data = vec![0f32; (size.width * size.height) as usize];
-        let mandelbrot_z_data = vec![0f32; (size.width * size.height) as usize];
-        engine.add_buffer(
-            BufferUsages::STORAGE,
-            bytemuck::cast_slice(&mandelbrot_texture_data),
+            Box::new(mandelbrot.get_shader_representation()),
         );
         engine.add_buffer(
             BufferUsages::STORAGE,
-            bytemuck::cast_slice(&mandelbrot.orbit_point_suite),
+            Box::new(vec![0f32; (size.width * size.height) as usize]),
         );
         engine.add_buffer(
             BufferUsages::STORAGE,
-            bytemuck::cast_slice(&mandelbrot_z_data),
+            Box::new(mandelbrot.orbit_point_suite),
         );
         engine.create_pipeline();
         Self {
-            window,
+            window: window.clone(),
             engine,
-            mandelbrot_state: MandelbrotState::new(size),
+            mandelbrot_state,
             last_screen_update: Instant::now(),
-            window_state: WindowState::new(size),
-            mandelbrot_texture: mandelbrot_texture_data,
+            window_state: WindowState::new(window.clone()),
             last_frame_time: Duration::from_secs_f32(1.0 / 120.0),
         }
     }
@@ -83,20 +75,19 @@ impl Game {
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
             self.engine.resize(new_size);
+            // let mandelbrot_texture: Vec<f32> = self.engine.buffers[GameBuffer::MandelbrotTexture as usize].data.into();
             // self.mandelbrot_state.mandelbrot.must_redraw = 0;
-            self.mandelbrot_texture.resize(
-                (self.window.inner_size().width * self.window.inner_size().height) as usize,
-                0.0,
-            );
-            self.engine.replace_buffer(
-                GameBuffer::MandelbrotTexture as usize,
-                BufferUsages::STORAGE,
-                bytemuck::cast_slice(&self.mandelbrot_texture),
-            );
+            // self.mandelbrot_texture.resize(
+            //     (self.window.inner_size().width * self.window.inner_size().height) as usize,
+            //     0.0,
+            // );
+            // self.engine.update_buffer(GameBuffer::MandelbrotTexture as usize);
         }
     }
 
     pub fn input(&mut self, event: Event<()>, control_flow: &mut ControlFlow) {
+        self.window_state.input(&event, &mut self.engine);
+        self.mandelbrot_state.input(&event, &mut self.engine);
         match event {
             Event::RedrawRequested(window_id) if window_id == self.window.id() => {
                 self.update();
@@ -135,6 +126,30 @@ impl Game {
                 // request a redraw
                 self.window.request_redraw();
             }
+            Event::WindowEvent {
+                ref event,
+                window_id,
+            } if window_id == self.window.id() => match event {
+                WindowEvent::Resized(physical_size) => {
+                    self.resize(*physical_size);
+                }
+                WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+                    self.resize(**new_inner_size);
+                }
+                // when the escape key is pressed exit the program
+                WindowEvent::CloseRequested | WindowEvent::KeyboardInput {
+                    input: KeyboardInput {
+                        state: ElementState::Pressed,
+                        virtual_keycode: Some(VirtualKeyCode::Escape),
+                        ..
+                    },
+                    ..
+                } => {
+                    *control_flow = ControlFlow::Exit
+                },
+                _ => {}
+            }
+
             _ => {}
         }
     }
@@ -143,6 +158,8 @@ impl Game {
         let delta_time = self.last_frame_time.as_secs_f32();
         self.window_state.update(&mut self.engine, delta_time);
         self.mandelbrot_state.update(&mut self.engine, delta_time);
+        self.engine.update_buffer(GameBuffer::Mandelbrot as usize);
+        self.engine.update_buffer(GameBuffer::MandelbrotOrbitPointSuite as usize);
         self.engine.update();
     }
 

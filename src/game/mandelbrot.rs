@@ -3,12 +3,14 @@ use std::default::Default;
 use std::vec::Vec;
 use num::Complex;
 use num_bigfloat::BigFloat;
-
+use bytemuck::{Pod, Zeroable};
+use crate::game::to_buffer_representation::ToBufferRepresentation;
+use to_buffer_representation_derive::ToBufferRepresentation;
 
 // We need this for Rust to store our data correctly for the shaders
 #[repr(C)]
 // This is so we can store this in a buffer
-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Debug, Copy, Clone, Pod, Zeroable, ToBufferRepresentation)]
 pub struct MandelbrotShaderRepresentation {
     generation: u32,
     time_elapsed: f32,
@@ -29,6 +31,7 @@ pub struct MandelbrotShaderRepresentation {
     _padding: u64,
 }
 
+#[derive(Debug)]
 pub struct Mandelbrot {
     pub generation: u32,
     pub time_elapsed: f32,

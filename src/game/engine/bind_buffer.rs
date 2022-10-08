@@ -1,8 +1,11 @@
 use wgpu::{BindGroupDescriptor, BindGroup, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, Buffer, BufferAddress, BufferBindingType, BufferUsages, Device, Queue, ShaderStages};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
+use crate::game::to_buffer_representation::ToBufferRepresentation;
+
 
 // A struct called BindedBuffer with a buffer, a bind group, and a bind group layout
 pub struct BindBuffer {
+    pub data: Box<dyn ToBufferRepresentation>,
     pub buffer: Buffer,
     pub bind_group: BindGroup,
     pub bind_group_layout: BindGroupLayout,
@@ -10,16 +13,27 @@ pub struct BindBuffer {
 
 // implement new for BindedBuffer
 impl BindBuffer {
+
+
+    pub fn update(&mut self, queue: &Queue) {
+        queue.write_buffer(
+            &self.buffer,
+            0,
+            self.data.to_bits(),
+        );
+    }
+
+    // create a new BindedBuffer
     pub fn new(
         device: &Device,
         usage: BufferUsages,
-        data: &[u8],
+        data: Box<dyn ToBufferRepresentation>,
     ) -> Self {
         let buffer = device.create_buffer_init(
             &BufferInitDescriptor {
                 label: None,
-                contents: data,
-                usage,
+                contents: bytemuck::cast_slice(data.to_bits()),
+                usage: usage | BufferUsages::COPY_DST,
             }
         );
         let bind_buffer_type: BufferBindingType;
@@ -66,6 +80,7 @@ impl BindBuffer {
             }
         );
         Self {
+            data,
             buffer,
             bind_group,
             bind_group_layout,

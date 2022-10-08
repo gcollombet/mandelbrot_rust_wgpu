@@ -9,6 +9,7 @@ use winit::event::{
 };
 use crate::game::engine::Engine;
 
+#[derive(Debug)]
 pub struct MandelbrotState {
     mandelbrot: Mandelbrot,
     zoom_speed: f32,
@@ -36,25 +37,25 @@ impl GameState for MandelbrotState {
                 * 100.0) as u32,
         );
         self.mandelbrot.update(delta_time);
-        engine.replace_buffer(
-            GameBuffer::Mandelbrot as usize,
-            BufferUsages::UNIFORM,
-            bytemuck::cast_slice(&[self.mandelbrot.get_shader_representation()]),
-        );
-        engine.replace_buffer(
-            GameBuffer::MandelbrotOrbitPointSuite as usize,
-            BufferUsages::STORAGE,
-            bytemuck::cast_slice(&self.mandelbrot.orbit_point_suite),
-        );
+        engine.update_buffer(GameBuffer::Mandelbrot as usize);
+        engine.update_buffer(GameBuffer::MandelbrotOrbitPointSuite as usize);
     }
 
-    fn input(&mut self, event: &Event<()>, game: &mut Game) {
+    fn input(&mut self, event: &Event<()>, engine: &mut Engine) {
         match event {
             Event::WindowEvent {
                 ref event, ..
             } => match event {
                 WindowEvent::Resized(physical_size) => {
                     self.mandelbrot.resize(physical_size.width, physical_size.height);
+                    engine.update_buffer(GameBuffer::MandelbrotTexture as usize);
+                }
+                WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+                    // new_inner_size is &&mut so we have to dereference it twice
+                    let new_inner_size = **new_inner_size;
+                    self.mandelbrot.resize( new_inner_size.width, new_inner_size.height);
+
+                    engine.update_buffer(GameBuffer::MandelbrotTexture as usize);
                 }
                 _ => {}
             },
@@ -65,7 +66,7 @@ impl GameState for MandelbrotState {
 
 impl MandelbrotState {
     // new
-    pub fn new(size: PhysicalSize<u32>) -> Self {
+    pub fn new(size: PhysicalSize<u32>, engine: &mut Engine) -> Self {
         let mandelbrot = Mandelbrot::new(10, size.width, size.height);
         Self {
             mandelbrot,

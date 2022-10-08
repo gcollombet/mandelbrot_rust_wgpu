@@ -1,7 +1,4 @@
-use std::borrow::Borrow;
 use std::rc::Rc;
-use std::time::{Duration, Instant};
-use wgpu::BufferUsages;
 use winit::event::{
     ElementState, Event, KeyboardInput, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowEvent,
 };
