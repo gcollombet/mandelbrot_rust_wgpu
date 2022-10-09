@@ -210,12 +210,16 @@ impl GameState for MandelbrotState {
                         if self.mouse_position.0 == 0 && self.mouse_position.1 == 0 {
                             self.mouse_position = (position.x as isize, position.y as isize);
                         }
+                        // self.move_speed.0 = -(position.x as f32 - self.mouse_position.0 as f32) / self.size.width as f32 * (self.size.width as f32 / self.size.height as f32);
+                        // self.move_speed.1 = (position.y as f32 - self.mouse_position.1 as f32) / self.size.height as f32;
                         self.mandelbrot.move_by_pixel(
                             position.x as isize - self.mouse_position.0,
                             position.y as isize - self.mouse_position.1,
                             self.size.width,
                             self.size.height,
                         );
+                        // self.move_speed.0 = -(position.x as f32 - self.mouse_position.0 as f32) / self.size.width as f32 * (self.size.width as f32 / self.size.height as f32);
+                        // self.move_speed.1 = (position.y as f32 - self.mouse_position.1 as f32) / self.size.height as f32;
                     }
                     self.mouse_position.0 = position.x as isize;
                     self.mouse_position.1 = position.y as isize;
