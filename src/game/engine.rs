@@ -147,6 +147,21 @@ impl Engine {
         self.buffers[index].update(&self.queue);
     }
 
+    pub fn replace_buffer(
+        &mut self,
+        index: usize,
+        usage: BufferUsages,
+        data: Rc<RefCell<dyn ToBufferRepresentation>>,
+    ) {
+        self.buffers[index] = BindBuffer::new(
+            &self.device,
+            usage,
+            data,
+        );
+    }
+
+
+
     pub fn add_buffer(
         &mut self, usage:
         BufferUsages,

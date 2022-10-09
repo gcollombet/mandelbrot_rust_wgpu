@@ -12,7 +12,6 @@ impl<T> ToBufferRepresentation for Vec<T>
 {
     fn to_bits(&self) -> &[u8] {
         bytemuck::cast_slice(self.as_slice())
-
     }
 }
 

@@ -8,14 +8,14 @@ use num_bigfloat::BigFloat;
 use bytemuck::{Pod, Zeroable};
 use crate::game::to_buffer_representation::ToBufferRepresentation;
 use to_buffer_representation_derive::ToBufferRepresentation;
+use std::array;
+// use array
 
 // We need this for Rust to store our data correctly for the shaders
 #[repr(C)]
 // This is so we can store this in a buffer
-#[derive(Debug, Copy, Clone, Pod, Zeroable, ToBufferRepresentation)]
+#[derive(Copy, Clone, Pod, Zeroable, ToBufferRepresentation)]
 pub struct MandelbrotShaderRepresentation {
-    _padding: u32,
-    generation: u32,
     time_elapsed: f32,
     zoom: f32,
     center_delta: [f32; 2],
@@ -31,10 +31,10 @@ pub struct MandelbrotShaderRepresentation {
     mu: f32,
     must_redraw: u32,
     color_palette_scale: f32,
+    _padding: u32,
     _padding2: u32,
 }
 
-#[derive(Debug)]
 pub struct Mandelbrot {
     pub generation: u32,
     pub time_elapsed: f32,
@@ -98,7 +98,6 @@ impl Default for Mandelbrot {
             orbit_point_suite: Rc::new(RefCell::new(orbit_point_suite)),
             last_orbit_iteration: 0,
             shader_representation: Rc::new(RefCell::new(MandelbrotShaderRepresentation {
-                generation: 0,
                 time_elapsed: 0.0,
                 zoom: 100.0,
                 center_delta: [0.0, 0.0],
@@ -120,7 +119,6 @@ impl Mandelbrot {
 
     fn update_shader_representation(& self)
     {
-        self.shader_representation.borrow_mut().generation = self.generation;
         self.shader_representation.borrow_mut().time_elapsed = self.time_elapsed;
         self.shader_representation.borrow_mut().zoom = self.zoom;
         self.shader_representation.borrow_mut().center_delta = self.center_delta;

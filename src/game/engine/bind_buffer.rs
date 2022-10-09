@@ -34,7 +34,7 @@ impl BindBuffer {
         let buffer = device.create_buffer_init(
             &BufferInitDescriptor {
                 label: None,
-                contents: bytemuck::cast_slice(data.borrow().to_bits()),
+                contents: data.borrow().to_bits(),
                 usage: usage | BufferUsages::COPY_DST,
             }
         );

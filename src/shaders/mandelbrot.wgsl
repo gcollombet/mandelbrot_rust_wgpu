@@ -19,8 +19,7 @@ struct VertexOutput {
 };
 
 // Define the uniform buffer from Mandelbrot Shader struct
-struct MandelbrotUniform {
-    generation : u32,
+struct Mandelbrot {
     time_elapsed: f32,
     zoom: f32,
     center_delta: vec2<f32>,
@@ -34,7 +33,7 @@ struct MandelbrotUniform {
 };
 
 @group(0) @binding(0)
-var<uniform> mandelbrot: MandelbrotUniform;
+var<uniform> mandelbrot: Mandelbrot;
 
 // add the storage buffer
 @group(1) @binding(0)
