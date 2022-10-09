@@ -48,19 +48,6 @@ impl Game {
         let size = window.inner_size();
         let mut engine = Engine::new(window.borrow()).await;
         let mandelbrot_state = MandelbrotState::new(size, &mut engine);
-        let mandelbrot = Mandelbrot::new(100, size.width, size.height);
-        engine.add_buffer(
-            BufferUsages::UNIFORM,
-            Box::new(mandelbrot.get_shader_representation()),
-        );
-        engine.add_buffer(
-            BufferUsages::STORAGE,
-            Box::new(vec![0f32; (size.width * size.height) as usize]),
-        );
-        engine.add_buffer(
-            BufferUsages::STORAGE,
-            Box::new(mandelbrot.orbit_point_suite),
-        );
         engine.create_pipeline();
         Self {
             window: window.clone(),
@@ -158,13 +145,10 @@ impl Game {
         let delta_time = self.last_frame_time.as_secs_f32();
         self.window_state.update(&mut self.engine, delta_time);
         self.mandelbrot_state.update(&mut self.engine, delta_time);
-        self.engine.update_buffer(GameBuffer::Mandelbrot as usize);
-        self.engine.update_buffer(GameBuffer::MandelbrotOrbitPointSuite as usize);
         self.engine.update();
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        self.engine.render().expect("TODO: panic message");
-        Ok(())
+        self.engine.render()
     }
 }

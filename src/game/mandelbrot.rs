@@ -1,5 +1,7 @@
+use std::cell::RefCell;
 use std::convert::Into;
 use std::default::Default;
+use std::rc::Rc;
 use std::vec::Vec;
 use num::Complex;
 use num_bigfloat::BigFloat;
@@ -12,6 +14,7 @@ use to_buffer_representation_derive::ToBufferRepresentation;
 // This is so we can store this in a buffer
 #[derive(Debug, Copy, Clone, Pod, Zeroable, ToBufferRepresentation)]
 pub struct MandelbrotShaderRepresentation {
+    _padding: u32,
     generation: u32,
     time_elapsed: f32,
     zoom: f32,
@@ -28,7 +31,7 @@ pub struct MandelbrotShaderRepresentation {
     mu: f32,
     must_redraw: u32,
     color_palette_scale: f32,
-    _padding: u64,
+    _padding2: u32,
 }
 
 #[derive(Debug)]
@@ -57,7 +60,8 @@ pub struct Mandelbrot {
     pub color_palette_scale: f32,
     pub last_orbit_z: (BigFloat, BigFloat),
     pub last_orbit_iteration: u32,
-    pub orbit_point_suite: Vec<[f32; 2]>,
+    pub orbit_point_suite: Rc<RefCell<Vec<[f32; 2]>>>,
+    pub shader_representation: Rc<RefCell<MandelbrotShaderRepresentation>>,
 }
 
 // x: -0.81448036, y: 0.18333414,
@@ -91,34 +95,48 @@ impl Default for Mandelbrot {
             ),
             epsilon: 0.0001,
             last_orbit_z: (0.0.into(),0.0.into()),
-            orbit_point_suite,
+            orbit_point_suite: Rc::new(RefCell::new(orbit_point_suite)),
             last_orbit_iteration: 0,
+            shader_representation: Rc::new(RefCell::new(MandelbrotShaderRepresentation {
+                generation: 0,
+                time_elapsed: 0.0,
+                zoom: 100.0,
+                center_delta: [0.0, 0.0],
+                epsilon: 0.0001,
+                maximum_iterations: 10000,
+                width: 0,
+                height: 0,
+                mu: 10000.0,
+                must_redraw: 0,
+                color_palette_scale: 100.0,
+                _padding: 0,
+                _padding2: 0,
+            })),
         }
     }
 }
 
 impl Mandelbrot {
 
-    pub fn get_shader_representation(& self) -> MandelbrotShaderRepresentation {
-        MandelbrotShaderRepresentation {
-            generation: self.generation,
-            time_elapsed: self.time_elapsed,
-            zoom: self.zoom,
-            center_delta: self.center_delta,
-            epsilon: self.epsilon,
-            maximum_iterations: self.maximum_iterations,
-            width: self.width,
-            height: self.height,
-            mu: self.mu,
-            must_redraw: self.must_redraw,
-            color_palette_scale: self.color_palette_scale,
-            _padding: 0,
-        }
+    fn update_shader_representation(& self)
+    {
+        self.shader_representation.borrow_mut().generation = self.generation;
+        self.shader_representation.borrow_mut().time_elapsed = self.time_elapsed;
+        self.shader_representation.borrow_mut().zoom = self.zoom;
+        self.shader_representation.borrow_mut().center_delta = self.center_delta;
+        self.shader_representation.borrow_mut().epsilon = self.epsilon;
+        self.shader_representation.borrow_mut().maximum_iterations = self.maximum_iterations;
+        self.shader_representation.borrow_mut().width = self.width;
+        self.shader_representation.borrow_mut().height = self.height;
+        self.shader_representation.borrow_mut().mu = self.mu;
+        self.shader_representation.borrow_mut().must_redraw = self.must_redraw;
+        self.shader_representation.borrow_mut().color_palette_scale = self.color_palette_scale;
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
         self.width = width;
         self.height = height;
+        self.update_shader_representation();
     }
 
     pub fn maximum_iterations(&self) -> u32 {
@@ -128,6 +146,7 @@ impl Mandelbrot {
     pub fn set_maximum_iterations(&mut self, maximum_iterations: u32) -> &mut Self {
         self.maximum_iterations = maximum_iterations;
         self.calculate_orbit_point_suite(false);
+        self.update_shader_representation();
         self
     }
 
@@ -145,6 +164,7 @@ impl Mandelbrot {
         self.center_delta[0] += normalized_mouse_vector.0 * (self.width as f32 / self.height as f32) * self.zoom;
         self.center_delta[1] += normalized_mouse_vector.1 * self.zoom;
         self.must_redraw = 0;
+        self.update_shader_representation();
     }
 
     pub fn zoom(&mut self) -> f32 {
@@ -154,6 +174,7 @@ impl Mandelbrot {
     pub fn set_zoom(&mut self, zoom: f32) -> &mut Self {
         self.zoom = zoom;
         self.must_redraw = 0;
+        self.update_shader_representation();
         self
     }
 
@@ -161,6 +182,7 @@ impl Mandelbrot {
         self.generation += 1;
         self.time_elapsed += delta_time;
         self.calculate_orbit_point_suite(true);
+        self.update_shader_representation();
     }
 
     fn calculate_orbit_point_suite(&mut self, partial: bool) {
@@ -173,7 +195,7 @@ impl Mandelbrot {
         let mut i = self.last_orbit_iteration as usize;
         let mut count = 0;
         while i < self.maximum_iterations as usize && (!partial || count < 50) {
-            self.orbit_point_suite[i as usize]=[z.0.to_f32(), z.1.to_f32()];
+            self.orbit_point_suite.borrow_mut()[i as usize]=[z.0.to_f32(), z.1.to_f32()];
             // z = z * z + c;
             z = (
                 z.0 * z.0 - z.1 * z.1 + c.0,
@@ -195,6 +217,7 @@ impl Mandelbrot {
         self.center_delta[0] = 0.0;
         self.center_delta[1] = 0.0;
         self.must_redraw = 0;
+        self.update_shader_representation();
     }
 
     pub fn center_orbit_at(
@@ -220,6 +243,7 @@ impl Mandelbrot {
         self.last_orbit_z = (0.0.into(),0.0.into());
         self.calculate_orbit_point_suite(true);
         self.must_redraw = 0;
+        self.update_shader_representation();
         println!(
             "x: {}, y: {}, zoom: {}",
             self.near_orbit_coordinate.0,
@@ -231,6 +255,7 @@ impl Mandelbrot {
     pub fn zoom_in(&mut self, zoom_factor: f32) {
         self.zoom = (self.zoom as f64 * zoom_factor as f64) as f32;
         self.must_redraw = 0;
+        self.update_shader_representation();
     }
 
     // a function that move the mandelbrot center coordinate by a given vector
@@ -238,6 +263,7 @@ impl Mandelbrot {
         self.center_delta[0] += vector.0;
         self.center_delta[1] += vector.1;
         self.must_redraw = 0;
+        self.update_shader_representation();
     }
 
     pub fn move_by_pixel(&mut self,
@@ -252,6 +278,7 @@ impl Mandelbrot {
         self.center_delta[0] -= normalized_mouse_vector.0 * (self.width as f32 / self.height as f32) * self.zoom;
         self.center_delta[1] -= normalized_mouse_vector.1 * self.zoom;
         self.must_redraw = 0;
+        self.update_shader_representation();
     }
 
     // a function that zoom in the mandelbrot set by a given factor.
@@ -283,6 +310,7 @@ impl Mandelbrot {
         self.center_delta[1] += zoomed_scaled_mouse_vector.1;
         self.zoom *= zoom_factor;
         self.must_redraw = 0;
+        self.update_shader_representation();
     }
 
     // function reset the mandelbrot set to its default values
@@ -290,6 +318,7 @@ impl Mandelbrot {
         self.zoom = 100.0;
         self.mu = 10000.0;
         self.must_redraw = 0;
+        self.update_shader_representation();
     }
 
     // implement new for MandelbrotShader, without zoom, x, y, mu

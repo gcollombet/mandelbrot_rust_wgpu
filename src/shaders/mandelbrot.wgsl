@@ -66,7 +66,7 @@ fn cmul(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
 
 // create a function that colorize a pixel based on the number of iterations has seen below
 fn colorize(coordinate: vec2<f32>, dc: vec2<f32>, iterations: f32) -> vec4<f32> {
-    var cycle = f32(mandelbrot.color_palette_scale);
+    var cycle = mandelbrot.color_palette_scale;
     var color = vec3<f32>(0.0,0.0,0.0);
 //    if(sqrt(iterations) % 2.0 < 1.0) {
         if(iterations < f32(mandelbrot.maximum_iterations)) {
@@ -74,22 +74,22 @@ fn colorize(coordinate: vec2<f32>, dc: vec2<f32>, iterations: f32) -> vec4<f32> 
             log_iterations = log_iterations * log_iterations;
             var t = abs(1.0 - (log_iterations % cycle) * 2.0 / cycle);
             // use a log scale to get a better color distribution
-//            color = vec3<f32>(
-//                0.5 + 0.5 * cos(t * 6.28 + coordinate.x + mandelbrot.time_elapsed / 3.3),
-//                0.5 + 0.5 * sin(t * 12.88 + sin(coordinate.y) + coordinate.y + mandelbrot.time_elapsed / 0.6),
-//                0.5 + 0.5 * cos(t * 3.14 + cos(coordinate.x * 3.14) + coordinate.y + mandelbrot.time_elapsed / 1.5)
-//            );
-            let wideness = 0.7;
-//            let wideness = 0.2 + abs(cos(mandelbrot.time_elapsed / 4.0)) * 1.5;
-            var dx = coordinate.x / 8.0 + cos(mandelbrot.time_elapsed / 4.0);
-//            dx= dx - modulo(dx, 3.14);
-            var dy = coordinate.y / 8.0 + cos(mandelbrot.time_elapsed / 8.0);
-//            dy= dy - modulo(dy, 3.14);
             color = vec3<f32>(
-                0.5 + 0.5 * cos(t * wideness * 6.28 + 1.4 + dx - 0.5 ),
-                0.5 + 0.5 * sin(t * wideness * 5.88 - 3.14 + sin(dy)),
-                0.5 + 0.5 * cos(t * wideness * 3.14 - 3.14 + cos(dx * 3.14) - 0.5)
+                0.5 + 0.5 * cos(t * 6.28 + coordinate.x + mandelbrot.time_elapsed / 3.3),
+                0.5 + 0.5 * sin(t * 12.88 + sin(coordinate.y) + coordinate.y + mandelbrot.time_elapsed / 0.6),
+                0.5 + 0.5 * cos(t * 3.14 + cos(coordinate.x * 3.14) + coordinate.y + mandelbrot.time_elapsed / 1.5)
             );
+//            let wideness = 0.7;
+////            let wideness = 0.2 + abs(cos(mandelbrot.time_elapsed / 4.0)) * 1.5;
+//            var dx = coordinate.x / 8.0 + cos(mandelbrot.time_elapsed / 4.0);
+////            dx= dx - modulo(dx, 3.14);
+//            var dy = coordinate.y / 8.0 + cos(mandelbrot.time_elapsed / 8.0);
+////            dy= dy - modulo(dy, 3.14);
+//            color = vec3<f32>(
+//                0.5 + 0.5 * cos(t * wideness * 6.28 + 1.4 + dx - 0.5 ),
+//                0.5 + 0.5 * sin(t * wideness * 5.88 - 3.14 + sin(dy)),
+//                0.5 + 0.5 * cos(t * wideness * 3.14 - 3.14 + cos(dx * 3.14) - 0.5)
+//            );
         }
 //    }
     return vec4<f32>(color, 1.0);

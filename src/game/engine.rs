@@ -1,6 +1,8 @@
 pub mod bind_buffer;
 pub mod vertex;
 
+use std::cell::RefCell;
+use std::rc::Rc;
 use winit::window::{Fullscreen, Window};
 use wgpu::{BufferUsages, ShaderModule};
 use wgpu::util::DeviceExt;
@@ -148,7 +150,7 @@ impl Engine {
     pub fn add_buffer(
         &mut self, usage:
         BufferUsages,
-        data: Box<dyn ToBufferRepresentation>,
+        data: Rc<RefCell<dyn ToBufferRepresentation>>,
     ) {
         self.buffers.push(
             BindBuffer::new(

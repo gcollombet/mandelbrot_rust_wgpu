@@ -11,7 +11,8 @@ impl<T> ToBufferRepresentation for Vec<T>
         T: Pod + Zeroable + Copy + Clone,
 {
     fn to_bits(&self) -> &[u8] {
-        bytemuck::cast_slice(self)
+        bytemuck::cast_slice(self.as_slice())
+
     }
 }
 
