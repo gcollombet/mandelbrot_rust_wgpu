@@ -107,7 +107,7 @@ impl Default for Mandelbrot {
                 height: 0,
                 mu: 10000.0,
                 must_redraw: 0,
-                color_palette_scale: 100.0,
+                color_palette_scale: 10.0,
                 _padding: 0,
                 _padding2: 0,
             })),
@@ -119,16 +119,17 @@ impl Mandelbrot {
 
     fn update_shader_representation(& self)
     {
-        self.shader_representation.borrow_mut().time_elapsed = self.time_elapsed;
-        self.shader_representation.borrow_mut().zoom = self.zoom;
-        self.shader_representation.borrow_mut().center_delta = self.center_delta;
-        self.shader_representation.borrow_mut().epsilon = self.epsilon;
-        self.shader_representation.borrow_mut().maximum_iterations = self.maximum_iterations;
-        self.shader_representation.borrow_mut().width = self.width;
-        self.shader_representation.borrow_mut().height = self.height;
-        self.shader_representation.borrow_mut().mu = self.mu;
-        self.shader_representation.borrow_mut().must_redraw = self.must_redraw;
-        self.shader_representation.borrow_mut().color_palette_scale = self.color_palette_scale;
+        let mut value = self.shader_representation.borrow_mut();
+        value.time_elapsed = self.time_elapsed;
+        value.zoom = self.zoom;
+        value.center_delta = self.center_delta;
+        value.epsilon = self.epsilon;
+        value.maximum_iterations = self.maximum_iterations;
+        value.width = self.width;
+        value.height = self.height;
+        value.mu = self.mu;
+        value.must_redraw = self.must_redraw;
+        value.color_palette_scale = self.color_palette_scale;
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
@@ -165,7 +166,7 @@ impl Mandelbrot {
         self.update_shader_representation();
     }
 
-    pub fn zoom(&mut self) -> f32 {
+    pub fn zoom(&self) -> f32 {
         self.zoom
     }
 
@@ -258,8 +259,8 @@ impl Mandelbrot {
 
     // a function that move the mandelbrot center coordinate by a given vector
     pub fn move_by(&mut self, vector: (f32, f32)) {
-        self.center_delta[0] += vector.0;
-        self.center_delta[1] += vector.1;
+        self.center_delta[0] += vector.0 * self.zoom.min(1.0);
+        self.center_delta[1] += vector.1 * self.zoom.min(1.0);
         self.must_redraw = 0;
         self.update_shader_representation();
     }

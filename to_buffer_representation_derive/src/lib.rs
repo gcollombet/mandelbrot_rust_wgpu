@@ -17,7 +17,7 @@ fn impl_to_buffer_representation(ast: &DeriveInput) -> TokenStream {
     let gen = quote! {
         impl ToBufferRepresentation for #name {
             fn to_bits(&self) -> &[u8] {
-                bytemuck::cast_slice(array::from_ref(self))
+                bytemuck::bytes_of(self)
             }
         }
     };

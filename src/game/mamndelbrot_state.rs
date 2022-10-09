@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::ops::Div;
 use std::rc::Rc;
 use wgpu::BufferUsages;
 use crate::game::game_state::GameState;
@@ -16,30 +17,36 @@ use crate::game::mandelbrot::MandelbrotShaderRepresentation;
 pub struct MandelbrotState {
     mandelbrot: Mandelbrot,
     mandelbrot_texture: Rc<RefCell<Vec<f32>>>,
-    mandelbrot_shader: Rc<RefCell<Vec<MandelbrotShaderRepresentation>>>,
     zoom_speed: f32,
+    zoom_acceleration: f32,
     move_speed: (f32, f32),
 }
 
 impl GameState for MandelbrotState {
     fn update(&mut self, engine: &mut Engine, delta_time: f32) {
-        let zoom = self.mandelbrot.zoom();
-        if self.zoom_speed != 1.0 {
+        let epsilon = 0.001;
+        self.zoom_acceleration *= 0.05_f32.powf(delta_time);
+        if self.zoom_acceleration.abs() < epsilon {
+            self.zoom_acceleration = 0.0;
+        }
+        if self.zoom_speed != 0.0 || self.zoom_acceleration != 0.0 {
             self.mandelbrot.set_zoom(
-                zoom
-                * (
-                    1.0
-                    - (self.zoom_speed * delta_time)
-                )
+                self.mandelbrot.zoom() * (1.0 - ((self.zoom_speed + self.zoom_acceleration) * delta_time))
             );
         }
         self.mandelbrot.set_maximum_iterations(
             ((1.0
-                + (1.0 / zoom)
+                + (1.0 / self.mandelbrot.zoom())
                 .log(2.1)
                 .clamp(0.0, 200.0))
                 * 100.0) as u32,
         );
+        self.move_speed.0 *= 0.05_f32.powf(delta_time);
+        self.move_speed.1 *= 0.05_f32.powf(delta_time);
+        if self.move_speed.0.abs() < epsilon {
+            self.move_speed.0 = 0.0;
+        }
+        self.mandelbrot.move_by(self.move_speed);
         self.mandelbrot.update(delta_time);
         engine.update_buffer(GameBuffer::Mandelbrot as usize);
         engine.update_buffer(GameBuffer::MandelbrotOrbitPointSuite as usize);
@@ -59,13 +66,13 @@ impl GameState for MandelbrotState {
                     engine.replace_buffer(
                         GameBuffer::MandelbrotTexture as usize,
                         BufferUsages::STORAGE,
-                        self.mandelbrot_texture.clone()
+                        self.mandelbrot_texture.clone(),
                     );
                 }
                 WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                     // new_inner_size is &&mut so we have to dereference it twice
                     let new_inner_size = **new_inner_size;
-                    self.mandelbrot.resize( new_inner_size.width, new_inner_size.height);
+                    self.mandelbrot.resize(new_inner_size.width, new_inner_size.height);
                     self.mandelbrot_texture.borrow_mut().resize(
                         (new_inner_size.width * new_inner_size.height) as usize,
                         0.0,
@@ -73,10 +80,130 @@ impl GameState for MandelbrotState {
                     engine.replace_buffer(
                         GameBuffer::MandelbrotTexture as usize,
                         BufferUsages::STORAGE,
-                        self.mandelbrot_texture.clone()
+                        self.mandelbrot_texture.clone(),
                     );
                     // engine.update_buffer(GameBuffer::MandelbrotTexture as usize);
                 }
+                // when the mouse scrolls,
+                // update the mandelbrot shader zoom
+                // by a magnitude of 1.1 or 0.9
+                // depending on the direction of the scroll wheel.
+                WindowEvent::MouseWheel { delta, .. } => match delta {
+                    MouseScrollDelta::LineDelta(_, y) => {
+                        if *y > 0.0 {
+                            self.zoom_acceleration += 2.0;
+                        } else {
+                            self.zoom_acceleration -= 2.0;
+                        }
+                        // self.mandelbrot.zoom_in(zoom_factor);
+                    }
+                    MouseScrollDelta::PixelDelta(_) => {}
+                },
+                // When the arrow keys are pressed or zqsd keys, update the mandelbrot shader coordinates.
+                WindowEvent::KeyboardInput { input, .. } => {
+                    // detect if keyboard is in french or english
+                    if input.state == ElementState::Pressed {
+                        if let Some(keycode) = input.virtual_keycode {
+                            let movement = 0.010;
+                            // if movement is < epsilon then set it to 0.0
+                            // let movement = if movement < f32::EPSILON { f32::EPSILON } else { movement };
+                            match keycode {
+                                // space
+                                VirtualKeyCode::Space => {
+                                    self.zoom_speed = 0.0;
+                                    self.zoom_acceleration = 0.0;
+                                }
+                                // return
+                                VirtualKeyCode::Return => {
+                                    self.mandelbrot.reset();
+                                }
+                                // page up
+                                VirtualKeyCode::PageUp => {
+                                    self.mandelbrot.color_palette_scale *= 1.1;
+                                }
+                                // page down
+                                VirtualKeyCode::PageDown => {
+                                    self.mandelbrot.color_palette_scale = self.mandelbrot.color_palette_scale
+                                        .div(1.1)
+                                        .max(0.1);
+                                }
+                                // add
+                                VirtualKeyCode::NumpadAdd => {
+                                    if self.zoom_speed < 0.0 {
+                                        self.zoom_speed /= 1.1;
+                                        if self.zoom_speed > -0.1 {
+                                            self.zoom_speed = 0.1;
+                                        }
+                                    } else {
+                                        if self.zoom_speed < 0.1 {
+                                            self.zoom_speed = 0.5;
+                                        }
+                                        self.zoom_speed *= 1.1;
+                                    }
+                                }
+                                // subtract
+                                VirtualKeyCode::NumpadSubtract => {
+                                    if self.zoom_speed < 0.0 {
+                                        if self.zoom_speed > -0.1 {
+                                            self.zoom_speed = 0.1;
+                                        }
+                                        self.zoom_speed *= 1.1;
+                                    } else {
+                                        self.zoom_speed /= 1.1;
+                                        if self.zoom_speed < 0.1 {
+                                            self.zoom_speed = -0.5;
+                                        }
+                                    }
+                                }
+                                // group similar keys together
+                                VirtualKeyCode::Left | VirtualKeyCode::Q => {
+                                    self.move_speed.0 -= movement;
+                                }
+                                VirtualKeyCode::Right | VirtualKeyCode::D => {
+                                    self.move_speed.0 += movement;
+                                }
+                                VirtualKeyCode::Up | VirtualKeyCode::Z => {
+                                    self.move_speed.1 += movement;
+                                }
+                                VirtualKeyCode::Down | VirtualKeyCode::S => {
+                                    self.move_speed.1 -= movement;
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+                // // update the mandelbrot shader coordinates when the mouse is moved.
+                // WindowEvent::CursorMoved { position, .. } => {
+                //     if state.mouse_left_button_pressed {
+                //         if state.mouse_position.0 == 0 && state.mouse_position.1 == 0 {
+                //             state.mouse_position = (position.x as isize, position.y as isize);
+                //         }
+                //         state.mandelbrot.move_by_pixel(
+                //             position.x as isize - state.mouse_position.0,
+                //             position.y as isize - state.mouse_position.1,
+                //             state.size.width,
+                //             state.size.height,
+                //         );
+                //     }
+                //     state.mouse_position.0 = position.x as isize;
+                //     state.mouse_position.1 = position.y as isize;
+                //     // if the left mouse button is pressed
+                //     if state.mouse_right_button_pressed {
+                //         // update the mandelbrot shader coordinates
+                //         state.mandelbrot.center_orbit_at(
+                //             state.mouse_position.0,
+                //             state.mouse_position.1,
+                //             state.size.width,
+                //             state.size.height,
+                //         );
+                //         state.engine.replace_buffer(
+                //             2,
+                //             BufferUsages::STORAGE,
+                //             bytemuck::cast_slice(&state.mandelbrot.orbit_point_suite),
+                //         );
+                //     }
+                // }
                 _ => {}
             },
             _ => {}
@@ -88,7 +215,6 @@ impl MandelbrotState {
     // new
     pub fn new(size: PhysicalSize<u32>, engine: &mut Engine) -> Self {
         let mandelbrot = Mandelbrot::new(100, size.width, size.height);
-        let mandelbrot_shader = Rc::new(RefCell::new(vec![*mandelbrot.shader_representation.clone().borrow()]));
         let mandelbrot_texture = Rc::new(RefCell::new(vec![0.0; (size.width * size.height) as usize]));
         engine.add_buffer(
             BufferUsages::UNIFORM,
@@ -105,8 +231,8 @@ impl MandelbrotState {
         Self {
             mandelbrot,
             mandelbrot_texture,
-            mandelbrot_shader,
-            zoom_speed: 0.9,
+            zoom_speed: 0.5,
+            zoom_acceleration: 0.0,
             move_speed: (0.0, 0.0),
         }
     }
