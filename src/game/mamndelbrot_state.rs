@@ -20,6 +20,10 @@ pub struct MandelbrotState {
     zoom_speed: f32,
     zoom_acceleration: f32,
     move_speed: (f32, f32),
+    size: PhysicalSize<u32>,
+    mouse_position: (isize, isize),
+    mouse_left_button_pressed: bool,
+    mouse_right_button_pressed: bool,
 }
 
 impl GameState for MandelbrotState {
@@ -68,6 +72,7 @@ impl GameState for MandelbrotState {
                         BufferUsages::STORAGE,
                         self.mandelbrot_texture.clone(),
                     );
+                    self.size = *physical_size;
                 }
                 WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                     // new_inner_size is &&mut so we have to dereference it twice
@@ -82,7 +87,7 @@ impl GameState for MandelbrotState {
                         BufferUsages::STORAGE,
                         self.mandelbrot_texture.clone(),
                     );
-                    // engine.update_buffer(GameBuffer::MandelbrotTexture as usize);
+                    self.size = new_inner_size;
                 }
                 // when the mouse scrolls,
                 // update the mandelbrot shader zoom
@@ -173,37 +178,58 @@ impl GameState for MandelbrotState {
                         }
                     }
                 }
-                // // update the mandelbrot shader coordinates when the mouse is moved.
-                // WindowEvent::CursorMoved { position, .. } => {
-                //     if state.mouse_left_button_pressed {
-                //         if state.mouse_position.0 == 0 && state.mouse_position.1 == 0 {
-                //             state.mouse_position = (position.x as isize, position.y as isize);
-                //         }
-                //         state.mandelbrot.move_by_pixel(
-                //             position.x as isize - state.mouse_position.0,
-                //             position.y as isize - state.mouse_position.1,
-                //             state.size.width,
-                //             state.size.height,
-                //         );
-                //     }
-                //     state.mouse_position.0 = position.x as isize;
-                //     state.mouse_position.1 = position.y as isize;
-                //     // if the left mouse button is pressed
-                //     if state.mouse_right_button_pressed {
-                //         // update the mandelbrot shader coordinates
-                //         state.mandelbrot.center_orbit_at(
-                //             state.mouse_position.0,
-                //             state.mouse_position.1,
-                //             state.size.width,
-                //             state.size.height,
-                //         );
-                //         state.engine.replace_buffer(
-                //             2,
-                //             BufferUsages::STORAGE,
-                //             bytemuck::cast_slice(&state.mandelbrot.orbit_point_suite),
-                //         );
-                //     }
-                // }
+                // factorize the mouse MouseInput event
+                WindowEvent::MouseInput { state, button, .. } => {
+                    if *state == ElementState::Pressed {
+                        match button {
+                            MouseButton::Left => {
+                                self.mouse_position.0 = 0;
+                                self.mouse_position.1 = 0;
+                                self.mouse_left_button_pressed = true;
+                            }
+                            MouseButton::Right => {
+                                self.mouse_right_button_pressed = true;
+                            }
+                            _ => {}
+                        }
+                    } else {
+                        match button {
+                            MouseButton::Left => {
+                                self.mouse_left_button_pressed = false;
+                            }
+                            MouseButton::Right => {
+                                self.mouse_right_button_pressed = false;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                // update the mandelbrot shader coordinates when the mouse is moved.
+                WindowEvent::CursorMoved { position, .. } => {
+                    if self.mouse_left_button_pressed {
+                        if self.mouse_position.0 == 0 && self.mouse_position.1 == 0 {
+                            self.mouse_position = (position.x as isize, position.y as isize);
+                        }
+                        self.mandelbrot.move_by_pixel(
+                            position.x as isize - self.mouse_position.0,
+                            position.y as isize - self.mouse_position.1,
+                            self.size.width,
+                            self.size.height,
+                        );
+                    }
+                    self.mouse_position.0 = position.x as isize;
+                    self.mouse_position.1 = position.y as isize;
+                    // if the left mouse button is pressed
+                    if self.mouse_right_button_pressed {
+                        // update the mandelbrot shader coordinates
+                        self.mandelbrot.center_orbit_at(
+                            self.mouse_position.0,
+                            self.mouse_position.1,
+                            self.size.width,
+                            self.size.height,
+                        );
+                    }
+                }
                 _ => {}
             },
             _ => {}
@@ -234,6 +260,10 @@ impl MandelbrotState {
             zoom_speed: 0.5,
             zoom_acceleration: 0.0,
             move_speed: (0.0, 0.0),
+            size,
+            mouse_position: (0,0),
+            mouse_left_button_pressed: false,
+            mouse_right_button_pressed: false,
         }
     }
 }

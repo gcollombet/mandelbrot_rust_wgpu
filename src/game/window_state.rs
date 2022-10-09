@@ -10,9 +10,6 @@ use crate::game::game_state::GameState;
 pub struct WindowState {
     window: Rc<Window>,
     is_fullscreen: bool,
-    mouse_position: (isize, isize),
-    mouse_left_button_pressed: bool,
-    mouse_right_button_pressed: bool,
 }
 
 impl WindowState {
@@ -20,9 +17,6 @@ impl WindowState {
         Self {
             window,
             is_fullscreen: false,
-            mouse_position: (0, 0),
-            mouse_left_button_pressed: false,
-            mouse_right_button_pressed: false,
         }
     }
 }
@@ -54,38 +48,6 @@ impl GameState for WindowState {
                     } else {
                         self.window.set_fullscreen(None);
                     }
-                }
-                // when the mouse is left clicked
-                WindowEvent::MouseInput {
-                    state: ElementState::Pressed,
-                    button: MouseButton::Left,
-                    ..
-                } => {
-                    self.mouse_position.0 = 0;
-                    self.mouse_position.1 = 0;
-                    self.mouse_left_button_pressed = true;
-                }
-                // when the mouse is left released
-                WindowEvent::MouseInput {
-                    state: ElementState::Released,
-                    button: MouseButton::Left,
-                    ..
-                } => {
-                    self.mouse_left_button_pressed = false;
-                }
-                WindowEvent::MouseInput {
-                    state: ElementState::Pressed,
-                    button: MouseButton::Right,
-                    ..
-                } => {
-                    self.mouse_right_button_pressed = true;
-                }
-                WindowEvent::MouseInput {
-                    state: ElementState::Released,
-                    button: MouseButton::Right,
-                    ..
-                } => {
-                    self.mouse_right_button_pressed = false;
                 }
                 _ => {}
             },
