@@ -1,14 +1,14 @@
 pub mod bind_buffer;
 pub mod vertex;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-use winit::window::{Fullscreen, Window};
-use wgpu::{BufferUsages, ShaderModule};
-use wgpu::util::DeviceExt;
-use bind_buffer::BindBuffer;
 use crate::game::engine::vertex::{Vertex, VERTICES};
 use crate::game::to_buffer_representation::ToBufferRepresentation;
+use bind_buffer::BindBuffer;
+use std::cell::RefCell;
+use std::rc::Rc;
+use wgpu::util::DeviceExt;
+use wgpu::{BufferUsages, ShaderModule};
+use winit::window::{Fullscreen, Window};
 
 pub struct Engine {
     surface: wgpu::Surface,
@@ -21,7 +21,6 @@ pub struct Engine {
     vertex_buffer: wgpu::Buffer,
 }
 
-
 // implement engine for Engine struct whith a new function
 impl Engine {
     // the new function takes a window as a parameter
@@ -33,31 +32,36 @@ impl Engine {
         let instance = wgpu::Instance::new(wgpu::Backends::all());
         let surface = unsafe { instance.create_surface(window) };
         // create adapter
-        let adapter = instance.request_adapter(
-            &wgpu::RequestAdapterOptions {
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::HighPerformance,
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
-            }
-        ).await.expect("Impossible to find a GPU!");
+            })
+            .await
+            .expect("Impossible to find a GPU!");
         // create device and queue
-        let (device, queue) = adapter.request_device(
-            &wgpu::DeviceDescriptor {
-                features: wgpu::Features::empty(),
-                // WebGL doesn't support all of wgpu's features, so if
-                // we're building for the web we'll have to disable some.
-                limits: if cfg!(target_arch = "wasm32") {
-                    wgpu::Limits::downlevel_webgl2_defaults()
-                } else {
-                    wgpu::Limits::default()
+        let (device, queue) = adapter
+            .request_device(
+                &wgpu::DeviceDescriptor {
+                    features: wgpu::Features::empty(),
+                    // WebGL doesn't support all of wgpu's features, so if
+                    // we're building for the web we'll have to disable some.
+                    limits: if cfg!(target_arch = "wasm32") {
+                        wgpu::Limits::downlevel_webgl2_defaults()
+                    } else {
+                        wgpu::Limits::default()
+                    },
+                    label: None,
                 },
-                label: None,
-            },
-            None, // Trace path
-        ).await.expect("Impossible to create device and queue!");
+                None, // Trace path
+            )
+            .await
+            .expect("Impossible to create device and queue!");
         let modes = surface.get_supported_modes(&adapter);
         // if modes countain Mailbox, use it, otherwise use FIFO
-        let mode = modes.iter()
+        let mode = modes
+            .iter()
             .find(|m| **m == wgpu::PresentMode::Mailbox)
             .unwrap_or(&wgpu::PresentMode::Fifo);
         let config = wgpu::SurfaceConfiguration {
@@ -68,13 +72,11 @@ impl Engine {
             present_mode: *mode,
         };
         surface.configure(&device, &config);
-        let vertex_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(VERTICES),
-                usage: wgpu::BufferUsages::VERTEX,
-            }
-        );
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(VERTICES),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
         let mut engine = Self {
             surface,
             config,
@@ -100,32 +102,27 @@ impl Engine {
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
-        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let mut encoder = self.device.create_command_encoder(
-            &wgpu::CommandEncoderDescriptor {
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
-            }
-        );
+            });
         {
-            let mut render_pass = encoder.begin_render_pass(
-                &wgpu::RenderPassDescriptor {
-                    label: Some("Render Pass"),
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: 0.1,
-                                g: 0.2,
-                                b: 0.3,
-                                a: 1.0,
-                            }),
-                            store: true,
-                        },
-                    })],
-                    depth_stencil_attachment: None,
-                }
-            );
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: None,
+            });
             render_pass.set_pipeline(&self.render_pipeline.as_ref().unwrap());
             // set bind groups from bind buffers with incrementing index
             for (i, bind_buffer) in self.buffers.iter().enumerate() {
@@ -140,10 +137,7 @@ impl Engine {
         Ok(())
     }
 
-    pub fn update_buffer(
-        &mut self,
-        index: usize,
-    ) {
+    pub fn update_buffer(&mut self, index: usize) {
         self.buffers[index].update(&self.queue);
     }
 
@@ -153,61 +147,49 @@ impl Engine {
         usage: BufferUsages,
         data: Rc<RefCell<dyn ToBufferRepresentation>>,
     ) {
-        self.buffers[index] = BindBuffer::new(
-            &self.device,
-            usage,
-            data,
-        );
+        self.buffers[index] = BindBuffer::new(&self.device, usage, data);
     }
 
-
-
     pub fn add_buffer(
-        &mut self, usage:
-        BufferUsages,
+        &mut self,
+        usage: BufferUsages,
         data: Rc<RefCell<dyn ToBufferRepresentation>>,
     ) {
-        self.buffers.push(
-            BindBuffer::new(
-                &self.device,
-                usage,
-                data,
-            )
-        );
+        self.buffers
+            .push(BindBuffer::new(&self.device, usage, data));
     }
 
     pub fn create_pipeline(&mut self) {
-        let shader = self.device.create_shader_module(
-            wgpu::ShaderModuleDescriptor {
+        let shader = self
+            .device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("Shader"),
-                source: wgpu::ShaderSource::Wgsl(
-                    include_str!("../shaders/mandelbrot.wgsl").into()
-                ),
+                source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/mandelbrot.wgsl").into()),
             });
         // extract a slice of bind group layouts from  buffers
-        let bind_group_layouts = self.buffers.iter()
+        let bind_group_layouts = self
+            .buffers
+            .iter()
             .map(|buffer| &buffer.bind_group_layout)
             .collect::<Vec<_>>();
 
         // create a render pipeline layout
         let render_pipeline_layout =
-            self.device.create_pipeline_layout(
-                &wgpu::PipelineLayoutDescriptor {
+            self.device
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Render Pipeline Layout"),
                     bind_group_layouts: bind_group_layouts.as_slice(),
                     push_constant_ranges: &[],
-                }
-            );
-        let render_pipeline = self.device.create_render_pipeline(
-            &wgpu::RenderPipelineDescriptor {
+                });
+        let render_pipeline = self
+            .device
+            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("Render Pipeline"),
                 layout: Some(&render_pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: "vs_main",
-                    buffers: &[
-                        Vertex::desc(),
-                    ],
+                    buffers: &[Vertex::desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
@@ -237,8 +219,7 @@ impl Engine {
                     alpha_to_coverage_enabled: false,
                 },
                 multiview: None,
-            }
-        );
+            });
         self.render_pipeline = Some(render_pipeline);
     }
 }

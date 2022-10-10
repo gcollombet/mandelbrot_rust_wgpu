@@ -1,9 +1,9 @@
 mod engine;
-mod mandelbrot;
 mod game_state;
-mod window_state;
 mod mamndelbrot_state;
+mod mandelbrot;
 mod to_buffer_representation;
+mod window_state;
 
 use std::borrow::Borrow;
 use std::rc::Rc;
@@ -14,12 +14,12 @@ use winit::event::{
 use winit::window::{Window, WindowBuilder};
 
 use engine::Engine;
+use game_state::GameState;
+use mamndelbrot_state::MandelbrotState;
 use mandelbrot::Mandelbrot;
 use wgpu::BufferUsages;
-use winit::event_loop::ControlFlow;
-use game_state::GameState;
 use window_state::WindowState;
-use mamndelbrot_state::MandelbrotState;
+use winit::event_loop::ControlFlow;
 
 // create an enum with the name of the different buffer
 enum GameBuffer {
@@ -38,7 +38,6 @@ pub struct Game {
 }
 
 impl Game {
-
     pub fn engine(&self) -> &Engine {
         &self.engine
     }
@@ -62,13 +61,6 @@ impl Game {
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
             self.engine.resize(new_size);
-            // let mandelbrot_texture: Vec<f32> = self.engine.buffers[GameBuffer::MandelbrotTexture as usize].data.into();
-            // self.mandelbrot_state.mandelbrot.must_redraw = 0;
-            // self.mandelbrot_texture.resize(
-            //     (self.window.inner_size().width * self.window.inner_size().height) as usize,
-            //     0.0,
-            // );
-            // self.engine.update_buffer(GameBuffer::MandelbrotTexture as usize);
         }
     }
 
@@ -124,18 +116,18 @@ impl Game {
                     self.resize(**new_inner_size);
                 }
                 // when the escape key is pressed exit the program
-                WindowEvent::CloseRequested | WindowEvent::KeyboardInput {
-                    input: KeyboardInput {
-                        state: ElementState::Pressed,
-                        virtual_keycode: Some(VirtualKeyCode::Escape),
-                        ..
-                    },
+                WindowEvent::CloseRequested
+                | WindowEvent::KeyboardInput {
+                    input:
+                        KeyboardInput {
+                            state: ElementState::Pressed,
+                            virtual_keycode: Some(VirtualKeyCode::Escape),
+                            ..
+                        },
                     ..
-                } => {
-                    *control_flow = ControlFlow::Exit
-                },
+                } => *control_flow = ControlFlow::Exit,
                 _ => {}
-            }
+            },
 
             _ => {}
         }

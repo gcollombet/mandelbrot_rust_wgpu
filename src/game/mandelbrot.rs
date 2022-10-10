@@ -1,14 +1,14 @@
+use crate::game::to_buffer_representation::ToBufferRepresentation;
+use bytemuck::{Pod, Zeroable};
+use num::Complex;
+use num_bigfloat::BigFloat;
+use std::array;
 use std::cell::RefCell;
 use std::convert::Into;
 use std::default::Default;
 use std::rc::Rc;
 use std::vec::Vec;
-use num::Complex;
-use num_bigfloat::BigFloat;
-use bytemuck::{Pod, Zeroable};
-use crate::game::to_buffer_representation::ToBufferRepresentation;
 use to_buffer_representation_derive::ToBufferRepresentation;
-use std::array;
 // use array
 
 // We need this for Rust to store our data correctly for the shaders
@@ -72,6 +72,7 @@ pub struct Mandelbrot {
 // -0.80266213, 0.18230489
 // BigFloat::parse("-8.005649172439378601652614980060010776762e-1").unwrap(),
 // BigFloat::parse("1.766690913194066364854892309438271746385e-1").unwrap(),
+// x: -7.500089440803277955738568318416497381310e-1, y: 2.404459737086860128597851267463334330760e-3, zoom: 0.00000000000000000000000000000000087084745
 impl Default for Mandelbrot {
     fn default() -> Self {
         let mut orbit_point_suite = Vec::new();
@@ -94,7 +95,7 @@ impl Default for Mandelbrot {
                 BigFloat::parse("8.440544207773073998562585116696206052408e-2").unwrap(),
             ),
             epsilon: 0.0001,
-            last_orbit_z: (0.0.into(),0.0.into()),
+            last_orbit_z: (0.0.into(), 0.0.into()),
             orbit_point_suite: Rc::new(RefCell::new(orbit_point_suite)),
             last_orbit_iteration: 0,
             shader_representation: Rc::new(RefCell::new(MandelbrotShaderRepresentation {
@@ -116,9 +117,7 @@ impl Default for Mandelbrot {
 }
 
 impl Mandelbrot {
-
-    fn update_shader_representation(& self)
-    {
+    fn update_shader_representation(&self) {
         let mut value = self.shader_representation.borrow_mut();
         value.time_elapsed = self.time_elapsed;
         value.zoom = self.zoom;
@@ -149,18 +148,13 @@ impl Mandelbrot {
         self
     }
 
-    pub fn center_at(
-        &mut self,
-        mouse_x: f32,
-        mouse_y: f32,
-        window_width: u32,
-        window_height: u32,
-    ) {
+    pub fn center_at(&mut self, mouse_x: f32, mouse_y: f32, window_width: u32, window_height: u32) {
         let normalized_mouse_vector = (
             (mouse_x - (window_width as f32 / 2.0)) / (window_width as f32 / 2.0),
             (mouse_y - (window_height as f32 / 2.0)) / (window_height as f32 / 2.0) * -1.0,
         );
-        self.center_delta[0] += normalized_mouse_vector.0 * (self.width as f32 / self.height as f32) * self.zoom;
+        self.center_delta[0] +=
+            normalized_mouse_vector.0 * (self.width as f32 / self.height as f32) * self.zoom;
         self.center_delta[1] += normalized_mouse_vector.1 * self.zoom;
         self.must_redraw = 0;
         self.update_shader_representation();
@@ -194,12 +188,9 @@ impl Mandelbrot {
         let mut i = self.last_orbit_iteration as usize;
         let mut count = 0;
         while i < self.maximum_iterations as usize && (!partial || count < 50) {
-            self.orbit_point_suite.borrow_mut()[i as usize]=[z.0.to_f32(), z.1.to_f32()];
+            self.orbit_point_suite.borrow_mut()[i as usize] = [z.0.to_f32(), z.1.to_f32()];
             // z = z * z + c;
-            z = (
-                z.0 * z.0 - z.1 * z.1 + c.0,
-                z.0 * z.1 * two + c.1,
-            );
+            z = (z.0 * z.0 - z.1 * z.1 + c.0, z.0 * z.1 * two + c.1);
             self.last_orbit_z = z;
             // calculate z.norm
             let z_norm = (z.0 * z.0 + z.1 * z.1);
@@ -227,27 +218,32 @@ impl Mandelbrot {
         window_height: u32,
     ) {
         let normalized_mouse_vector = (
-            (BigFloat::from_f64(mouse_x as f64) - (BigFloat::from_f64(window_width as f64) / BigFloat::parse("2.0").unwrap())) / (BigFloat::from_f64(window_width as f64)  / BigFloat::parse("2.0").unwrap()),
-            (BigFloat::from_f64(mouse_y as f64) - (BigFloat::from_f64(window_height as f64) / BigFloat::parse("2.0").unwrap())) / (BigFloat::from_f64(window_height as f64)  / BigFloat::parse("2.0").unwrap()) * BigFloat::parse("-1.0").unwrap(),
+            (BigFloat::from_f64(mouse_x as f64)
+                - (BigFloat::from_f64(window_width as f64) / BigFloat::parse("2.0").unwrap()))
+                / (BigFloat::from_f64(window_width as f64) / BigFloat::parse("2.0").unwrap()),
+            (BigFloat::from_f64(mouse_y as f64)
+                - (BigFloat::from_f64(window_height as f64) / BigFloat::parse("2.0").unwrap()))
+                / (BigFloat::from_f64(window_height as f64) / BigFloat::parse("2.0").unwrap())
+                * BigFloat::parse("-1.0").unwrap(),
         );
         let delta = (
-            normalized_mouse_vector.0 * (BigFloat::from_f64(self.width as f64) / BigFloat::from_f64(self.height as f64)) * BigFloat::from_f64(self.zoom as f64),
-            normalized_mouse_vector.1 * BigFloat::from_f64(self.zoom as f64) ,
+            normalized_mouse_vector.0
+                * (BigFloat::from_f64(self.width as f64) / BigFloat::from_f64(self.height as f64))
+                * BigFloat::from_f64(self.zoom as f64),
+            normalized_mouse_vector.1 * BigFloat::from_f64(self.zoom as f64),
         );
         self.near_orbit_coordinate.0 += delta.0 + BigFloat::from_f64(self.center_delta[0] as f64);
         self.near_orbit_coordinate.1 += delta.1 + BigFloat::from_f64(self.center_delta[1] as f64);
         self.center_delta[0] = -delta.0.to_f32();
         self.center_delta[1] = -delta.1.to_f32();
         self.last_orbit_iteration = 0;
-        self.last_orbit_z = (0.0.into(),0.0.into());
+        self.last_orbit_z = (0.0.into(), 0.0.into());
         self.calculate_orbit_point_suite(true);
         self.must_redraw = 0;
         self.update_shader_representation();
         println!(
             "x: {}, y: {}, zoom: {}",
-            self.near_orbit_coordinate.0,
-            self.near_orbit_coordinate.1,
-            self.zoom
+            self.near_orbit_coordinate.0, self.near_orbit_coordinate.1, self.zoom
         );
     }
 
@@ -259,22 +255,27 @@ impl Mandelbrot {
 
     // a function that move the mandelbrot center coordinate by a given vector
     pub fn move_by(&mut self, vector: (f32, f32)) {
-        self.center_delta[0] += vector.0 * self.zoom.min(1.0);
-        self.center_delta[1] += vector.1 * self.zoom.min(1.0);
-        self.must_redraw = 0;
-        self.update_shader_representation();
+        if vector.0 != 0.0 || vector.1 != 0.0 {
+            self.center_delta[0] += vector.0 * self.zoom.min(1.0);
+            self.center_delta[1] += vector.1 * self.zoom.min(1.0);
+            self.must_redraw = 0;
+            self.update_shader_representation();
+        }
     }
 
-    pub fn move_by_pixel(&mut self,
-                         mouse_x: isize,
-                         mouse_y: isize,
-                         window_width: u32,
-                         window_height: u32,) {
+    pub fn move_by_pixel(
+        &mut self,
+        mouse_x: isize,
+        mouse_y: isize,
+        window_width: u32,
+        window_height: u32,
+    ) {
         let normalized_mouse_vector = (
             mouse_x as f32 / (window_width as f32 / 2.0),
             mouse_y as f32 / (window_height as f32 / 2.0) * -1.0,
         );
-        self.center_delta[0] -= normalized_mouse_vector.0 * (self.width as f32 / self.height as f32) * self.zoom;
+        self.center_delta[0] -=
+            normalized_mouse_vector.0 * (self.width as f32 / self.height as f32) * self.zoom;
         self.center_delta[1] -= normalized_mouse_vector.1 * self.zoom;
         self.must_redraw = 0;
         self.update_shader_representation();
@@ -290,20 +291,27 @@ impl Mandelbrot {
     // Then it add the "scaled_mouse_vector" to the current x and y coordinates of the mandelbrot set
     // Then it multiply the "scaled_mouse_vector" by the zoom factor in a new variable called "zoomed_scaled_mouse_vector"
     // Then it add the "zoomed_scaled_mouse_vector" times -1 to the current x and y coordinates of the mandelbrot set
-    pub fn zoom_at(&mut self, zoom_factor: f32, mouse_x: f32, mouse_y: f32, window_width: u32, window_height: u32) {
+    pub fn zoom_at(
+        &mut self,
+        zoom_factor: f32,
+        mouse_x: f32,
+        mouse_y: f32,
+        window_width: u32,
+        window_height: u32,
+    ) {
         let normalized_mouse_vector = (
             (mouse_x - (window_width as f32 / 2.0)) / (window_width as f32 / 2.0),
-            (mouse_y - (window_height as f32 / 2.0)) / (window_height as f32 / 2.0)
+            (mouse_y - (window_height as f32 / 2.0)) / (window_height as f32 / 2.0),
         );
         let scaled_mouse_vector = (
             normalized_mouse_vector.0 * self.zoom,
-            normalized_mouse_vector.1 * self.zoom
+            normalized_mouse_vector.1 * self.zoom,
         );
         self.center_delta[0] += scaled_mouse_vector.0;
         self.center_delta[1] -= scaled_mouse_vector.1;
         let zoomed_scaled_mouse_vector = (
             scaled_mouse_vector.0 * zoom_factor,
-            scaled_mouse_vector.1 * zoom_factor
+            scaled_mouse_vector.1 * zoom_factor,
         );
         self.center_delta[0] -= zoomed_scaled_mouse_vector.0;
         self.center_delta[1] += zoomed_scaled_mouse_vector.1;
@@ -322,7 +330,7 @@ impl Mandelbrot {
 
     // implement new for MandelbrotShader, without zoom, x, y, mu
     pub fn new(maximum_iterations: u32, width: u32, height: u32) -> Self {
-        let mut value = Self{
+        let mut value = Self {
             maximum_iterations,
             width,
             height,

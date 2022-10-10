@@ -1,4 +1,3 @@
-
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {
@@ -21,7 +20,7 @@ impl Vertex {
                     offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
                     shader_location: 1,
                     format: wgpu::VertexFormat::Float32x2,
-                }
+                },
             ],
         }
     }
@@ -29,11 +28,29 @@ impl Vertex {
 
 pub const VERTICES: &[Vertex] = &[
     // first triangle
-    Vertex { position: [-1.0, -1.0, 0.0], coordinate: [-1.0, -1.0] },
-    Vertex { position: [1.0, 1.0, 0.0], coordinate: [1.0, 1.0] },
-    Vertex { position: [-1.0, 1.0, 0.0], coordinate: [-1.0, 1.0] },
+    Vertex {
+        position: [-1.0, -1.0, 0.0],
+        coordinate: [-1.0, -1.0],
+    },
+    Vertex {
+        position: [1.0, 1.0, 0.0],
+        coordinate: [1.0, 1.0],
+    },
+    Vertex {
+        position: [-1.0, 1.0, 0.0],
+        coordinate: [-1.0, 1.0],
+    },
     // second triangle
-    Vertex { position: [-1.0, -1.0, 0.0], coordinate: [-1.0, -1.0] },
-    Vertex { position: [1.0, -1.0, 0.0], coordinate: [1.0, -1.0] },
-    Vertex { position: [1.0, 1.0, 0.0], coordinate: [1.0, 1.0] },
+    Vertex {
+        position: [-1.0, -1.0, 0.0],
+        coordinate: [-1.0, -1.0],
+    },
+    Vertex {
+        position: [1.0, -1.0, 0.0],
+        coordinate: [1.0, -1.0],
+    },
+    Vertex {
+        position: [1.0, 1.0, 0.0],
+        coordinate: [1.0, 1.0],
+    },
 ];
