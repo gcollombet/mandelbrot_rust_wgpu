@@ -64,9 +64,10 @@ impl Engine {
             .iter()
             .find(|m| **m == wgpu::PresentMode::Mailbox)
             .unwrap_or(&wgpu::PresentMode::Fifo);
+        let formats = surface.get_supported_formats(&adapter);
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_supported_formats(&adapter)[0],
+            format: formats[0],
             width: size.width,
             height: size.height,
             present_mode: *mode,
@@ -196,8 +197,8 @@ impl Engine {
                     entry_point: "fs_main",
                     targets: &[Some(wgpu::ColorTargetState {
                         format: self.config.format,
-                        blend: Some(wgpu::BlendState::REPLACE),
-                        write_mask: wgpu::ColorWrites::ALL,
+                        blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                        write_mask: wgpu::ColorWrites::ALL ,
                     })],
                 }),
                 primitive: wgpu::PrimitiveState {

@@ -65,18 +65,19 @@ fn cmul(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
 
 // create a function that colorize a pixel based on the number of iterations has seen below
 fn colorize(coordinate: vec2<f32>, dc: vec2<f32>, iterations: f32) -> vec4<f32> {
-    var color = vec3<f32>(0.0,0.0,0.0);
+    var color = vec4<f32>(0.0,0.0,0.0,0.0);
     if(iterations < f32(mandelbrot.maximum_iterations)) {
         var t = abs(1.0 - ((iterations + mandelbrot.time_elapsed * 5.0) % mandelbrot.color_palette_scale) * 2.0 / mandelbrot.color_palette_scale);
         var dx = coordinate.x / 8.0 + cos(mandelbrot.time_elapsed / 2.0);
         var dy = coordinate.y / 1.0 + cos(mandelbrot.time_elapsed / 2.0);
-        color = vec3<f32>(
+        color = vec4<f32>(
             0.5 + 0.5 * cos(t * 6.28 + 1.4 + sin(dx) - 0.5),
             0.5 + 0.5 * sin(t * 5.88 - 3.14 + sin(dy)),
-            0.5 + 0.5 * cos(t * 3.14 - 3.14 + cos(dx * 3.14) - 0.5)
+            0.5 + 0.5 * cos(t * 3.14 - 3.14 + cos(dx * 3.14) - 0.5),
+            1.0
         );
     }
-    return vec4<f32>(color, 1.0);
+    return color;
 }
 
 @fragment
