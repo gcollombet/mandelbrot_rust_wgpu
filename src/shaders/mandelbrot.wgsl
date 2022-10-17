@@ -34,13 +34,19 @@ struct Mandelbrot {
 
 @group(0) @binding(0)
 var<uniform> mandelbrot: Mandelbrot;
-
-// add the storage buffer
 @group(1) @binding(0)
-var<storage, read_write> mandelbrotTexture: array<f32>;
+var<uniform> previous_mandelbrot: Mandelbrot;
 
 // add the storage buffer
 @group(2) @binding(0)
+var<storage, read_write> mandelbrotTexture: array<f32>;
+@group(3) @binding(0)
+var<storage, read_write> previousMandelbrotTexture: array<f32>;
+@group(4) @binding(0)
+var<storage, read_write> mandelbrotZTexture: array<f32>;
+
+// add the storage buffer
+@group(5) @binding(0)
 var<storage, read_write> mandelbrotOrbitPointSuite: array<vec2<f32>>;
 
 @vertex

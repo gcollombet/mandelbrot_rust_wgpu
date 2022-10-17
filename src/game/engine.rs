@@ -1,9 +1,11 @@
 pub mod bind_buffer;
+pub mod bind_group_buffer_entry;
 pub mod vertex;
 
+use crate::game::engine::bind_buffer::BindBuffer;
+use crate::game::engine::bind_group_buffer_entry::BindGroupBufferEntry;
 use crate::game::engine::vertex::{Vertex, VERTICES};
 use crate::game::to_buffer_representation::ToBufferRepresentation;
-use bind_buffer::BindBuffer;
 use std::cell::RefCell;
 use std::rc::Rc;
 use wgpu::util::DeviceExt;
@@ -198,7 +200,7 @@ impl Engine {
                     targets: &[Some(wgpu::ColorTargetState {
                         format: self.config.format,
                         blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                        write_mask: wgpu::ColorWrites::ALL ,
+                        write_mask: wgpu::ColorWrites::ALL,
                     })],
                 }),
                 primitive: wgpu::PrimitiveState {

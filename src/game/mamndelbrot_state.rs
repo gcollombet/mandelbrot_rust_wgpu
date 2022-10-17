@@ -15,7 +15,9 @@ use winit::event::{
 
 pub struct MandelbrotState {
     mandelbrot: Mandelbrot,
-    mandelbrot_texture: Rc<RefCell<Vec<f32>>>,
+    mandelbrot_iteration_texture: Rc<RefCell<Vec<f32>>>,
+    mandelbrot_iteration_texture_previous: Rc<RefCell<Vec<f32>>>,
+    mandelbrot_z_texture: Rc<RefCell<Vec<[f32; 2]>>>,
     zoom_speed: f32,
     zoom_acceleration: f32,
     move_speed: (f32, f32),
@@ -63,13 +65,13 @@ impl GameState for MandelbrotState {
                 WindowEvent::Resized(physical_size) => {
                     self.mandelbrot
                         .resize(physical_size.width, physical_size.height);
-                    self.mandelbrot_texture
+                    self.mandelbrot_iteration_texture
                         .borrow_mut()
                         .resize((physical_size.width * physical_size.height) as usize, 0.0);
                     engine.replace_buffer(
-                        GameBuffer::MandelbrotTexture as usize,
+                        GameBuffer::MandelbrotIterationTexture as usize,
                         BufferUsages::STORAGE,
-                        self.mandelbrot_texture.clone(),
+                        self.mandelbrot_iteration_texture.clone(),
                     );
                     self.size = *physical_size;
                 }
@@ -78,13 +80,13 @@ impl GameState for MandelbrotState {
                     let new_inner_size = **new_inner_size;
                     self.mandelbrot
                         .resize(new_inner_size.width, new_inner_size.height);
-                    self.mandelbrot_texture
+                    self.mandelbrot_iteration_texture
                         .borrow_mut()
                         .resize((new_inner_size.width * new_inner_size.height) as usize, 0.0);
                     engine.replace_buffer(
-                        GameBuffer::MandelbrotTexture as usize,
+                        GameBuffer::MandelbrotIterationTexture as usize,
                         BufferUsages::STORAGE,
-                        self.mandelbrot_texture.clone(),
+                        self.mandelbrot_iteration_texture.clone(),
                     );
                     self.size = new_inner_size;
                 }
@@ -242,17 +244,36 @@ impl MandelbrotState {
     // new
     pub fn new(size: PhysicalSize<u32>, engine: &mut Engine) -> Self {
         let mandelbrot = Mandelbrot::new(100, size.width, size.height);
-        let mandelbrot_texture =
+        let mandelbrot_iteration_texture =
             Rc::new(RefCell::new(vec![0.0; (size.width * size.height) as usize]));
+        // create a buffer to store the previous mandelbrot texture
+        let mandelbrot_iteration_texture_previous =
+            Rc::new(RefCell::new(vec![0.0; (size.width * size.height) as usize]));
+        // create a buffer to store the z complex (a tuple of two float values) of the mandelbrot
+        let mandelbrot_z_texture = Rc::new(RefCell::new(vec![
+            [0.0, 0.0];
+            (size.width * size.height) as usize
+        ]));
         engine.add_buffer(
             BufferUsages::UNIFORM,
             mandelbrot.shader_representation.clone(),
         );
-        engine.add_buffer(BufferUsages::STORAGE, mandelbrot_texture.clone());
+        engine.add_buffer(
+            BufferUsages::UNIFORM,
+            mandelbrot.shader_representation.clone(),
+        );
+        engine.add_buffer(BufferUsages::STORAGE, mandelbrot_iteration_texture.clone());
+        engine.add_buffer(
+            BufferUsages::STORAGE,
+            mandelbrot_iteration_texture_previous.clone(),
+        );
+        engine.add_buffer(BufferUsages::STORAGE, mandelbrot_z_texture.clone());
         engine.add_buffer(BufferUsages::STORAGE, mandelbrot.orbit_point_suite.clone());
         Self {
             mandelbrot,
-            mandelbrot_texture,
+            mandelbrot_iteration_texture,
+            mandelbrot_iteration_texture_previous,
+            mandelbrot_z_texture,
             zoom_speed: 0.5,
             zoom_acceleration: 0.0,
             move_speed: (0.0, 0.0),

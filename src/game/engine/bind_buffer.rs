@@ -1,89 +1,79 @@
 use crate::game::to_buffer_representation::ToBufferRepresentation;
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingResource, BindingType, Buffer, BufferAddress, BufferBindingType,
-    BufferUsages, Device, Queue, ShaderStages,
+    BindGroupLayoutEntry, BindingResource, BindingType, Buffer, BufferBindingType, BufferUsages,
+    Device, Queue, ShaderStages,
 };
 
-// create a struct name PipelineBuffer
-// a name,
-// a BindGroupLayoutEntry,
-// a BindGroupEntry,
-// a Buffer,
-// a Queue,
-// and a field named data, with the buffer data as  Rc<RefCell<dyn ToBufferRepresentation>>
+// create a struct with a name and a   BindGroupLayoutEntry
 
-pub struct PipelineBuffer {
-    pub name: String,
-    pub bind_group_layout_entry: BindGroupLayoutEntry,
-    // pub bind_group_entry: BindGroupEntry<'a>,
-    data: Rc<RefCell<dyn ToBufferRepresentation>>,
+// A struct called BindedBuffer with a buffer, a bind group, and a bind group layout
+pub struct BindBuffer {
+    pub data: Rc<RefCell<dyn ToBufferRepresentation>>,
+    pub buffer: Buffer,
+    pub bind_group: BindGroup,
+    pub bind_group_layout: BindGroupLayout,
 }
 
-// implement PipelineBuffer for PipelineBuffer struct
-impl PipelineBuffer {
-    // create a new function that takes
-    // a device,
-    // a queue,
-    // a name,
-    // a data,
-    // a usage,
-    // a shader stage,
-    // a binding
-    // and a binding type as parameters
-    // and returns a PipelineBuffer
-    pub fn new(
-        device: &Device,
-        name: String,
-        data: Rc<RefCell<dyn ToBufferRepresentation>>,
-        usage: BufferUsages,
-        shader_stage: ShaderStages,
-        binding: u32,
-        binding_type: BindingType,
-    ) -> Self {
-        let contents = data.borrow().to_bits();
-        // create a buffer with the device and the queue
-        // and the data from the data parameter
-        let buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some(&name),
-            contents,
-            usage,
-        });
-        // create a bind_group_layout_entry with the name, the shader stage and the binding type
-        let bind_group_layout_entry = BindGroupLayoutEntry {
-            binding,
-            visibility: shader_stage,
-            ty: binding_type,
-            count: None,
-        };
-        // create a bind_group_entry with the binding and the buffer binding type
-        // let bind_group_entry = BindGroupEntry {
-        //     binding,
-        //     resource: buffer.as_entire_binding(),
-        // };
-        // return a PipelineBuffer with the name, the bind_group_layout_entry, the bind_group_entry, the buffer and the data
-        Self {
-            name,
-            bind_group_layout_entry,
-            // bind_group_entry,
-            data,
-        }
+// implement new for BindedBuffer
+impl BindBuffer {
+    pub fn update(&mut self, queue: &Queue) {
+        queue.write_buffer(&self.buffer, 0, self.data.borrow().to_bits());
     }
 
-    // create a function named update that updates the buffer
+    // create a new BindedBuffer
+    pub fn new(
+        device: &Device,
+        usage: BufferUsages,
+        data: Rc<RefCell<dyn ToBufferRepresentation>>,
+    ) -> Self {
+        let buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: None,
+            contents: data.borrow().to_bits(),
+            usage: usage | BufferUsages::COPY_DST,
+        });
+        let bind_buffer_type: BufferBindingType;
+        match usage {
+            BufferUsages::UNIFORM => {
+                bind_buffer_type = BufferBindingType::Uniform;
+            }
+            BufferUsages::STORAGE => {
+                bind_buffer_type = BufferBindingType::Storage { read_only: false };
+            }
+            _ => {
+                panic!("Unsupported buffer usage");
+            }
+        }
 
-    pub fn update(&mut self) {
-        // // get the buffer from the resource using if let
-        // if let BindingResource::Buffer(buffer_binding) = &self.bind_group_entry.resource.borrow() {
-        //     // get the buffer from the buffer binding
-        //     let buffer = buffer_binding.buffer;
-        // update the buffer with the queue and the bits
-        // self.queue
-        //     .write_buffer(&buffer, 0, self.data.borrow().to_bits());
-        // }
+        let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: None,
+            entries: &[BindGroupLayoutEntry {
+                binding: 0,
+                visibility: ShaderStages::FRAGMENT,
+                ty: BindingType::Buffer {
+                    ty: bind_buffer_type,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
+        let bind_group = device.create_bind_group(&BindGroupDescriptor {
+            label: None,
+            layout: &bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: BindingResource::Buffer(buffer.as_entire_buffer_binding()),
+            }],
+        });
+        Self {
+            data,
+            buffer,
+            bind_group,
+            bind_group_layout,
+        }
     }
 }

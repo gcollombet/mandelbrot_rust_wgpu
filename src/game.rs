@@ -24,8 +24,11 @@ use winit::event_loop::ControlFlow;
 // create an enum with the name of the different buffer
 enum GameBuffer {
     Mandelbrot = 0,
-    MandelbrotTexture = 1,
-    MandelbrotOrbitPointSuite = 2,
+    PreviousMandelbrot = 1,
+    MandelbrotIterationTexture = 2,
+    MandelbrotIterationTexturePrevious = 3,
+    MandelbrotZTexture = 4,
+    MandelbrotOrbitPointSuite = 5,
 }
 
 pub struct Game {
