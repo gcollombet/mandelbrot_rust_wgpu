@@ -4,7 +4,7 @@ use crate::game::{GameBuffer, Mandelbrot};
 use std::cell::RefCell;
 use std::ops::Div;
 use std::rc::Rc;
-use wgpu::BufferUsages;
+use wgpu::{BufferBindingType, BufferUsages, ShaderStages};
 use winit::dpi::PhysicalSize;
 
 use crate::game::engine::Engine;
@@ -68,11 +68,13 @@ impl GameState for MandelbrotState {
                     self.mandelbrot_iteration_texture
                         .borrow_mut()
                         .resize((physical_size.width * physical_size.height) as usize, 0.0);
-                    engine.replace_buffer(
-                        GameBuffer::MandelbrotIterationTexture as usize,
-                        BufferUsages::STORAGE,
-                        self.mandelbrot_iteration_texture.clone(),
-                    );
+                    engine.update_buffer(GameBuffer::MandelbrotIterationTexture as usize);
+
+                    // engine.replace_buffer(
+                    //     GameBuffer::MandelbrotIterationTexture as usize,
+                    //     BufferUsages::STORAGE,
+                    //     self.mandelbrot_iteration_texture.clone(),
+                    // );
                     self.size = *physical_size;
                 }
                 WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
@@ -83,11 +85,12 @@ impl GameState for MandelbrotState {
                     self.mandelbrot_iteration_texture
                         .borrow_mut()
                         .resize((new_inner_size.width * new_inner_size.height) as usize, 0.0);
-                    engine.replace_buffer(
-                        GameBuffer::MandelbrotIterationTexture as usize,
-                        BufferUsages::STORAGE,
-                        self.mandelbrot_iteration_texture.clone(),
-                    );
+                    engine.update_buffer(GameBuffer::MandelbrotIterationTexture as usize);
+                    // engine.replace_buffer(
+                    //     GameBuffer::MandelbrotIterationTexture as usize,
+                    //     BufferUsages::STORAGE,
+                    //     self.mandelbrot_iteration_texture.clone(),
+                    // );
                     self.size = new_inner_size;
                 }
                 // when the mouse scrolls,
@@ -255,20 +258,48 @@ impl MandelbrotState {
             (size.width * size.height) as usize
         ]));
         engine.add_buffer(
-            BufferUsages::UNIFORM,
+            BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+            BufferBindingType::Uniform,
+            ShaderStages::FRAGMENT,
             mandelbrot.shader_representation.clone(),
         );
         engine.add_buffer(
-            BufferUsages::UNIFORM,
+            BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+            BufferBindingType::Uniform,
+            ShaderStages::FRAGMENT,
             mandelbrot.shader_representation.clone(),
         );
-        engine.add_buffer(BufferUsages::STORAGE, mandelbrot_iteration_texture.clone());
         engine.add_buffer(
-            BufferUsages::STORAGE,
+            BufferUsages::STORAGE | BufferUsages::COPY_DST,
+            BufferBindingType::Storage {
+                read_only: false,
+            },
+            ShaderStages::FRAGMENT,
+            mandelbrot_iteration_texture.clone());
+        engine.add_buffer(
+            BufferUsages::STORAGE | BufferUsages::COPY_DST,
+            BufferBindingType::Storage {
+                read_only: false,
+            },
+            ShaderStages::FRAGMENT,
             mandelbrot_iteration_texture_previous.clone(),
         );
-        engine.add_buffer(BufferUsages::STORAGE, mandelbrot_z_texture.clone());
-        engine.add_buffer(BufferUsages::STORAGE, mandelbrot.orbit_point_suite.clone());
+        engine.add_buffer(
+            BufferUsages::STORAGE | BufferUsages::COPY_DST,
+            BufferBindingType::Storage {
+                read_only: false,
+            },
+            ShaderStages::FRAGMENT,
+                          mandelbrot_z_texture.clone()
+        );
+        engine.add_buffer(
+            BufferUsages::STORAGE | BufferUsages::COPY_DST,
+            BufferBindingType::Storage {
+                read_only: false,
+            },
+            ShaderStages::FRAGMENT,
+            mandelbrot.orbit_point_suite.clone()
+        );
         Self {
             mandelbrot,
             mandelbrot_iteration_texture,

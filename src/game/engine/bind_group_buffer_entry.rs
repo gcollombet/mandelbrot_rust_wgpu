@@ -11,23 +11,52 @@ use wgpu::{
 
 // create a struct to hold a bind group layout entry, a bind group entry, and a buffer
 
-pub struct BindGroupBufferEntry<'a> {
+pub struct BindGroupBufferEntry {
     pub bind_group_layout_entry: BindGroupLayoutEntry,
-    pub bind_group_entry: BindGroupEntry<'a>,
     pub buffer: Buffer,
+    usage: BufferUsages,
     pub data: Rc<RefCell<dyn ToBufferRepresentation>>,
 }
 
 // implement new for BindGroupBufferEntry
-impl<'a> BindGroupBufferEntry<'a> {
+impl BindGroupBufferEntry {
+
+
+
+    // create that return a bing group entry
+    pub fn bind_group_entry(&self) -> BindGroupEntry {
+        let buffer = &self.buffer;
+        let binding = self.bind_group_layout_entry.binding;
+        BindGroupEntry {
+            binding,
+            resource: buffer.as_entire_binding(),
+        }
+    }
+
+    pub fn update(&mut self, device: &Device, queue: &Queue) {
+        let data: &RefCell<dyn ToBufferRepresentation> = self.data.borrow();
+        let data = data.borrow();
+        let contents = data.to_bits();
+        // if self.buffer.slice(..).len() != contents.len() {
+            self.buffer = device.create_buffer_init(&BufferInitDescriptor {
+                label: Some("Buffer"),
+                contents,
+                usage: self.usage,
+            });
+        // }
+        // let _data: &RefCell<dyn ToBufferRepresentation> = self.data.borrow();
+        queue.write_buffer(&self.buffer, 0, contents);
+    }
+
+    // create a new BindGroupBufferEntry
     pub fn new(
-        device: &'a Device,
+        device: &Device,
         binding: u32,
         visibility: ShaderStages,
         usage: BufferUsages,
         buffer_binding_type: BufferBindingType,
         data: Rc<RefCell<dyn ToBufferRepresentation>>,
-    ) -> BindGroupBufferEntry<'a> {
+    ) -> Self {
         // create a buffer from the data
         let _data: &RefCell<dyn ToBufferRepresentation> = data.borrow();
         let buffer = device.create_buffer_init(&BufferInitDescriptor {
@@ -35,15 +64,6 @@ impl<'a> BindGroupBufferEntry<'a> {
             contents: _data.borrow().to_bits(),
             usage,
         });
-        let buffer2 = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Buffer"),
-            contents: _data.borrow().to_bits(),
-            usage,
-        });
-        let bind_group_entry = BindGroupEntry {
-            binding,
-            resource: buffer2.as_entire_binding(),
-        };
         // borrow the data
         let bind_group_layout_entry = BindGroupLayoutEntry {
             binding,
@@ -57,7 +77,7 @@ impl<'a> BindGroupBufferEntry<'a> {
         };
         Self {
             bind_group_layout_entry,
-            bind_group_entry,
+            usage,
             buffer,
             data,
         }
