@@ -20,6 +20,7 @@ struct VertexOutput {
 
 // Define the uniform buffer from Mandelbrot Shader struct
 struct Mandelbrot {
+    generation: f32,
     time_elapsed: f32,
     zoom: f32,
     center_delta: vec2<f32>,
@@ -28,7 +29,6 @@ struct Mandelbrot {
     width: u32,
     height: u32,
     mu: f32,
-    must_redraw: u32,
     color_palette_scale: f32,
 };
 
@@ -43,7 +43,7 @@ var<storage, read_write> mandelbrotTexture: array<f32>;
 @group(0) @binding(3)
 var<storage, read_write> previousMandelbrotTexture: array<f32>;
 @group(0) @binding(4)
-var<storage, read_write> mandelbrotZTexture: array<f32>;
+var<storage, read_write> mandelbrotZTexture: array<vec2<f32>>;
 
 // add the storage buffer
 @group(0) @binding(5)
@@ -57,11 +57,6 @@ fn vs_main(
     out.clip_position = vec4<f32>(model.position, 1.0);
     out.coord = model.coordinate.xy;
     return out;
-}
-
-// Fragment shader
-fn vpow2(v: vec2<f32>) -> vec2<f32> {
-     return vec2(v.x * v.x - v.y * v.y, 2. * v.x * v.y);
 }
 
 // cmul is a complex multiplication
@@ -98,7 +93,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         mandelbrot.center_delta.y + in.coord.y * mandelbrot.zoom
     );
     var color = colorize(in.coord, dc, mandelbrotTexture[index]);
-    if(mandelbrot.must_redraw == 0u) {
+    if(
+        mandelbrot.zoom != previous_mandelbrot.zoom
+        || mandelbrot.center_delta.x != previous_mandelbrot.center_delta.x
+        || mandelbrot.center_delta.y != previous_mandelbrot.center_delta.y
+    ) {
         var iteration = f32(mandelbrot.maximum_iterations);
         // draw a mandelbrot set
         var z = mandelbrotOrbitPointSuite[0];
@@ -111,6 +110,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         while (i < iteration) {
             z = mandelbrotOrbitPointSuite[u32(i)];
             dz = cmul(2.0 * z + dz,dz) + dc;
+            mandelbrotZTexture[index] = dz;
             // if squared module of dz
             let dot_dz = dot(dz, dz);
              // if is bigger than a max value, then we are out of the mandelbrot set

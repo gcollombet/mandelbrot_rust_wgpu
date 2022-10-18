@@ -21,8 +21,6 @@ pub struct BindGroupBufferEntry {
 // implement new for BindGroupBufferEntry
 impl BindGroupBufferEntry {
 
-
-
     // create that return a bing group entry
     pub fn bind_group_entry(&self) -> BindGroupEntry {
         let buffer = &self.buffer;
@@ -37,14 +35,13 @@ impl BindGroupBufferEntry {
         let data: &RefCell<dyn ToBufferRepresentation> = self.data.borrow();
         let data = data.borrow();
         let contents = data.to_bits();
-        // if self.buffer.slice(..).len() != contents.len() {
+        // if self.buffer.slice(..).get_mapped_range().len() != contents.len() {
             self.buffer = device.create_buffer_init(&BufferInitDescriptor {
                 label: Some("Buffer"),
                 contents,
                 usage: self.usage,
             });
         // }
-        // let _data: &RefCell<dyn ToBufferRepresentation> = self.data.borrow();
         queue.write_buffer(&self.buffer, 0, contents);
     }
 
@@ -56,7 +53,7 @@ impl BindGroupBufferEntry {
         usage: BufferUsages,
         buffer_binding_type: BufferBindingType,
         data: Rc<RefCell<dyn ToBufferRepresentation>>,
-    ) -> Self {
+    ) -> Self { ;
         // create a buffer from the data
         let _data: &RefCell<dyn ToBufferRepresentation> = data.borrow();
         let buffer = device.create_buffer_init(&BufferInitDescriptor {

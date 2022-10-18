@@ -16,7 +16,7 @@ use winit::window::{Window, WindowBuilder};
 use engine::Engine;
 use game_state::GameState;
 use mamndelbrot_state::MandelbrotState;
-use mandelbrot::Mandelbrot;
+use mandelbrot::MandelbrotEngine;
 use wgpu::BufferUsages;
 use window_state::WindowState;
 use winit::event_loop::ControlFlow;

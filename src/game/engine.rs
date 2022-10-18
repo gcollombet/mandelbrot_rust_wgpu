@@ -1,8 +1,6 @@
-pub mod bind_buffer;
 pub mod bind_group_buffer_entry;
 pub mod vertex;
 
-use crate::game::engine::bind_buffer::BindBuffer;
 use crate::game::engine::bind_group_buffer_entry::BindGroupBufferEntry;
 use crate::game::engine::vertex::{Vertex, VERTICES};
 use crate::game::to_buffer_representation::ToBufferRepresentation;
@@ -17,7 +15,6 @@ pub struct Engine {
     config: wgpu::SurfaceConfiguration,
     pub queue: wgpu::Queue,
     pub device: wgpu::Device,
-    shader: Option<ShaderModule>,
     render_pipeline: Option<wgpu::RenderPipeline>,
     pub buffers: Vec<BindGroupBufferEntry>,
     vertex_buffer: wgpu::Buffer,
@@ -86,7 +83,6 @@ impl Engine {
             queue,
             device,
             render_pipeline: None,
-            shader: None,
             buffers: vec![],
             vertex_buffer,
         };
@@ -100,7 +96,6 @@ impl Engine {
     }
 
     pub fn update(&mut self) {
-        // self.buffers.iter_mut().for_each(|b| b.update( &self.queue));
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -157,20 +152,6 @@ impl Engine {
     pub fn update_buffer(&mut self, index: usize) {
         self.buffers[index].update(&self.device, &self.queue);
     }
-
-    // pub fn replace_buffer(
-    //     &mut self,
-    //     index: usize,
-    //     data: Rc<RefCell<dyn ToBufferRepresentation>>,
-    // ) {
-    //     self.buffers[index] = BindGroupBufferEntry::new(
-    //         &self.device,
-    //         index as u32,
-    //         ShaderStages::FRAGMENT,
-    //         self.buffers[index],
-    //         BufferBindingType::Uniform,
-    //         data);
-    // }
 
     pub fn add_buffer(
         &mut self,
