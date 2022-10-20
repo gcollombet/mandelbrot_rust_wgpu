@@ -20,7 +20,7 @@ struct VertexOutput {
 
 // Define the uniform buffer from Mandelbrot Shader struct
 struct Mandelbrot {
-    generation: f32,
+    generation: u32,
     time_elapsed: f32,
     zoom: f32,
     center_delta: vec2<f32>,
@@ -142,18 +142,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         mandelbrot.center_delta.x + in.coord.x * f32(mandelbrot.width) / f32(mandelbrot.height) * mandelbrot.zoom ,
         mandelbrot.center_delta.y + in.coord.y * mandelbrot.zoom
     );
-    if(
-        mandelbrot.zoom != previous_mandelbrot.zoom
-    ) {
-        compute_iteration(dc, index);
-    } else {
-        let movement = mandelbrot.center_delta - previous_mandelbrot.center_delta;
-        let movement_x = movement.x / (f32(mandelbrot.width) / f32(mandelbrot.height)) / mandelbrot.zoom;
-        let movement_y = movement.y / mandelbrot.zoom;
-        let previous_pixel = vec2<i32>(
-            i32((in.coord.x + movement_x + 1.0) / 2.0 * f32(mandelbrot.width)),
-            i32((in.coord.y + movement_y + 1.0) / 2.0 * f32(mandelbrot.height))
-        );
+    var color = colorize(in.coord, dc, mandelbrotTexture[index]);
+    let movement = mandelbrot.center_delta - previous_mandelbrot.center_delta;
+    let movement_x = movement.x / (f32(mandelbrot.width) / f32(mandelbrot.height)) / mandelbrot.zoom;
+    let movement_y = movement.y / mandelbrot.zoom;
+    let previous_pixel = vec2<i32>(
+        i32((in.coord.x + movement_x + 1.0) / 2.0 * f32(mandelbrot.width)),
+        i32((in.coord.y + movement_y + 1.0) / 2.0 * f32(mandelbrot.height))
+    );
+    if(movement_x != 0.0 || movement_y != 0.0) {
         if(
             u32(previous_pixel.x) < mandelbrot.width
             && u32(previous_pixel.y) < mandelbrot.height
@@ -166,6 +163,27 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             compute_iteration(dc, index);
         }
     }
-    var color = colorize(in.coord, dc, mandelbrotTexture[index]);
+    if(
+        mandelbrot.zoom != previous_mandelbrot.zoom
+    ) {
+        if(
+           !(pixel.x % 20u == (mandelbrot.generation % 20u))
+        && !(pixel.y % 20u == ((mandelbrot.generation + 1u) % 20u))
+        && (abs(in.coord.x) > 0.10 || abs(in.coord.y) > 0.10)
+        ) {
+            let zoom_factor = mandelbrot.zoom / previous_mandelbrot.zoom;
+            let previous_pixel = vec2<i32>(
+                i32((in.coord.x * zoom_factor + 1.0) / 2.0 * f32(mandelbrot.width)),
+                i32((in.coord.y * zoom_factor + 1.0) / 2.0 * f32(mandelbrot.height))
+            );
+            let previous_index = u32(previous_pixel.y) * mandelbrot.width + u32(previous_pixel.x);
+            mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
+        } else {
+            compute_iteration(dc, index);
+        }
+    }
+
+
+
     return color;
 }

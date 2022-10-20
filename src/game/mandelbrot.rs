@@ -175,8 +175,8 @@ impl Default for MandelbrotEngine {
         orbit_point_suite.resize_with(50000, || [0.0, 0.0]);
         Self {
             near_orbit_coordinate: (
-                BigFloat::parse("-7.627677549887342372397302854143029545734e-1").unwrap(),
-                BigFloat::parse("8.931480905527971786649375475419219722965e-2").unwrap(),
+                BigFloat::parse("-7.475923752064317130670890204311118186069e-1").unwrap(),
+                BigFloat::parse("8.440544207773073998562585116696206052408e-2").unwrap(),
             ),
             last_orbit_z: (0.0.into(), 0.0.into()),
             orbit_point_suite: Rc::new(RefCell::new(orbit_point_suite)),
