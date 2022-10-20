@@ -146,40 +146,26 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         mandelbrot.zoom != previous_mandelbrot.zoom
     ) {
         compute_iteration(dc, index);
-//        previousMandelbrotTexture[index] = mandelbrotTexture[index];
-
     } else {
         let movement = mandelbrot.center_delta - previous_mandelbrot.center_delta;
-        let movement_x = movement.x / mandelbrot.zoom;
+        let movement_x = movement.x / (f32(mandelbrot.width) / f32(mandelbrot.height)) / mandelbrot.zoom;
         let movement_y = movement.y / mandelbrot.zoom;
-        let has_move = abs(movement_x) > (1.0 / f32(mandelbrot.width))
-                       || abs(movement_y) > (1.0 / f32(mandelbrot.height));
-//        if (has_move) {
-            let previous_pixel = vec2<i32>(
-                i32((in.coord.x + movement_x + 1.0) / 2.0 * f32(mandelbrot.width)),
-                i32((in.coord.y + movement_y + 1.0) / 2.0 * f32(mandelbrot.height))
-            );
-            if(
-                u32(previous_pixel.x) < mandelbrot.width
-                && u32(previous_pixel.y) < mandelbrot.height
-                && previous_pixel.x >= 0
-                && previous_pixel.y >= 0
-            ) {
-                let previous_index = u32(previous_pixel.y) * mandelbrot.width + u32(previous_pixel.x);
-                mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
-            } else {
-                compute_iteration(dc, index);
-            }
-            // test if it is last pixel
-//            if (
-//                pixel.x == (mandelbrot.width - 1u)
-//                && pixel.y == (mandelbrot.height - 1u)
-//            ) {
-//              lastRenderedMandelbrot.center_delta = mandelbrot.center_delta;
-//            }
-//        }
+        let previous_pixel = vec2<i32>(
+            i32((in.coord.x + movement_x + 1.0) / 2.0 * f32(mandelbrot.width)),
+            i32((in.coord.y + movement_y + 1.0) / 2.0 * f32(mandelbrot.height))
+        );
+        if(
+            u32(previous_pixel.x) < mandelbrot.width
+            && u32(previous_pixel.y) < mandelbrot.height
+            && previous_pixel.x > 0
+            && previous_pixel.y > 0
+        ) {
+            let previous_index = u32(previous_pixel.y) * mandelbrot.width + u32(previous_pixel.x);
+            mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
+        } else {
+            compute_iteration(dc, index);
+        }
     }
     var color = colorize(in.coord, dc, mandelbrotTexture[index]);
-//    previousMandelbrotTexture[index] = mandelbrotTexture[index];
     return color;
 }
