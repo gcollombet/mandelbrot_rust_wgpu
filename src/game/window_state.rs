@@ -1,7 +1,9 @@
 use std::rc::Rc;
+
 use winit::dpi::PhysicalSize;
 use winit::event::{ElementState, Event, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent};
 use winit::window::{Fullscreen, Window};
+
 use crate::game::engine::Engine;
 use crate::game::Game;
 use crate::game::game_state::GameState;

@@ -1,25 +1,26 @@
-mod engine;
-mod game_state;
-mod mamndelbrot_state;
-mod mandelbrot;
-mod to_buffer_representation;
-mod window_state;
-
 use std::borrow::Borrow;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
+
+use wgpu::BufferUsages;
 use winit::event::{
     ElementState, Event, KeyboardInput, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowEvent,
 };
+use winit::event_loop::ControlFlow;
 use winit::window::{Window, WindowBuilder};
 
 use engine::Engine;
 use game_state::GameState;
 use mamndelbrot_state::MandelbrotState;
 use mandelbrot::MandelbrotEngine;
-use wgpu::BufferUsages;
 use window_state::WindowState;
-use winit::event_loop::ControlFlow;
+
+mod engine;
+mod game_state;
+mod mamndelbrot_state;
+mod mandelbrot;
+mod to_buffer_representation;
+mod window_state;
 
 // create an enum with the name of the different buffer
 enum GameBuffer {

@@ -1,13 +1,17 @@
-use crate::game::to_buffer_representation::ToBufferRepresentation;
-use bytemuck::{Pod, Zeroable};
-use num_bigfloat::BigFloat;
 use std::cell::RefCell;
 use std::convert::Into;
 use std::default::Default;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::vec::Vec;
+
+use bytemuck::{Pod, Zeroable};
+use num_bigfloat::BigFloat;
+
 use to_buffer_representation_derive::ToBufferRepresentation;
+
+use crate::game::to_buffer_representation::ToBufferRepresentation;
+
 // use array
 
 // We need this for Rust to store our data correctly for the shaders

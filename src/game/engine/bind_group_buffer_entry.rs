@@ -1,19 +1,22 @@
-use crate::game::to_buffer_representation::ToBufferRepresentation;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
-use wgpu::util::{BufferInitDescriptor, DeviceExt};
+
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingResource, BindingType, Buffer, BufferBinding, BufferBindingType,
     BufferUsages, Device, Queue, ShaderStages,
 };
+use wgpu::util::{BufferInitDescriptor, DeviceExt};
+
+use crate::game::to_buffer_representation::ToBufferRepresentation;
 
 // create a struct to hold a bind group layout entry, a bind group entry, and a buffer
 
 pub struct BindGroupBufferEntry {
     pub bind_group_layout_entry: BindGroupLayoutEntry,
     pub buffer: Buffer,
+    length: usize,
     usage: BufferUsages,
     pub data: Rc<RefCell<dyn ToBufferRepresentation>>,
 }
@@ -31,19 +34,26 @@ impl BindGroupBufferEntry {
         }
     }
 
+    // length of the buffer
+    pub fn length(&self) -> usize {
+        self.length
+    }
+
     pub fn update(&mut self, device: &Device, queue: &Queue) {
         let data: &RefCell<dyn ToBufferRepresentation> = self.data.borrow();
         let data = data.borrow();
         let contents = data.to_bits();
-        // if self.buffer.slice(..).get_mapped_range().len() != contents.len() {
+        if self.length != contents.len() {
+            self.length = contents.len();
             self.buffer = device.create_buffer_init(&BufferInitDescriptor {
                 label: Some("Buffer"),
                 contents,
                 usage: self.usage,
             });
-        // }
+        }
         queue.write_buffer(&self.buffer, 0, contents);
     }
+
 
     // create a new BindGroupBufferEntry
     pub fn new(
@@ -56,6 +66,7 @@ impl BindGroupBufferEntry {
     ) -> Self { ;
         // create a buffer from the data
         let _data: &RefCell<dyn ToBufferRepresentation> = data.borrow();
+        let length = _data.borrow().to_bits().len();
         let buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Buffer"),
             contents: _data.borrow().to_bits(),
@@ -74,6 +85,7 @@ impl BindGroupBufferEntry {
         };
         Self {
             bind_group_layout_entry,
+            length,
             usage,
             buffer,
             data,

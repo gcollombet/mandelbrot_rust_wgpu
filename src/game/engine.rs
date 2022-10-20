@@ -1,14 +1,17 @@
-pub mod bind_group_buffer_entry;
-pub mod vertex;
+use std::cell::RefCell;
+use std::ops::Deref;
+use std::rc::Rc;
+
+use wgpu::{BufferAddress, BufferBindingType, BufferUsages, ShaderModule, ShaderStages};
+use wgpu::util::DeviceExt;
+use winit::window::{Fullscreen, Window};
 
 use crate::game::engine::bind_group_buffer_entry::BindGroupBufferEntry;
 use crate::game::engine::vertex::{Vertex, VERTICES};
 use crate::game::to_buffer_representation::ToBufferRepresentation;
-use std::cell::RefCell;
-use std::rc::Rc;
-use wgpu::util::DeviceExt;
-use wgpu::{BufferBindingType, BufferUsages, ShaderModule, ShaderStages};
-use winit::window::{Fullscreen, Window};
+
+pub mod bind_group_buffer_entry;
+pub mod vertex;
 
 pub struct Engine {
     surface: wgpu::Surface,
@@ -95,8 +98,7 @@ impl Engine {
         self.surface.configure(&self.device, &self.config);
     }
 
-    pub fn update(&mut self) {
-    }
+    pub fn update(&mut self) {}
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
@@ -142,7 +144,15 @@ impl Engine {
             render_pass.set_bind_group(0, &bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.draw(0..VERTICES.len() as u32, 0..1);
+
         }
+        encoder.copy_buffer_to_buffer(
+            &self.buffers[2].buffer,
+            0,
+            &self.buffers[3].buffer,
+            0,
+            self.buffers[3].length() as BufferAddress
+        );
         // submit will accept anything that implements IntoIter
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();

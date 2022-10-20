@@ -18,3 +18,4 @@ pollster = "0.2.5"
 wgpu = "0.13.1"
 winit = "0.27.3"
 to_buffer_representation_derive = { path = "./to_buffer_representation_derive" }
+rand = "0.8.5"
