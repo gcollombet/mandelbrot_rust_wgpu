@@ -156,8 +156,8 @@ impl GameState for MandelbrotState {
                                 }
                                 // page down
                                 VirtualKeyCode::PageDown => {
-                                    self.mandelbrot.data.deref().borrow_mut().color_palette_scale =
-                                        self.mandelbrot.data.deref().borrow().color_palette_scale.div(1.1).max(0.1);
+                                    let value = self.mandelbrot.data.deref().borrow().color_palette_scale.div(1.1).max(0.1);
+                                    self.mandelbrot.data.deref().borrow_mut().color_palette_scale =value;
                                 }
                                 // add
                                 VirtualKeyCode::NumpadAdd => {

@@ -120,8 +120,10 @@ fn compute_iteration(dc: vec2<f32>, index: u32) {
         if (dot_dz < epsilon) {
             i = iteration;
             break;
+        } else {
+           i += 1.0;
         }
-        i += 1.0;
+
     }
     // add the rest to i to get a smooth color gradient
     let log_zn = log(dz.x * dz.x + dz.y * dz.y) / 2.0;
@@ -170,7 +172,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         // a var that contain the norm of the in.coord vector
         let norm = sqrt(in.coord.x * in.coord.x + in.coord.y * in.coord.y);
         // make the norm follow a square curve
-        let norm_square = 1u + u32(norm * norm * 320.0);
+        let norm_square = 1u + u32(norm * norm * 50.0);
         if(
            !(pixel.x % norm_square == (mandelbrot.generation % norm_square))
         && !(pixel.y % norm_square == (mandelbrot.generation % norm_square))
@@ -181,21 +183,50 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 i32((in.coord.y * zoom_factor + 1.0) / 2.0 * f32(mandelbrot.height))
             );
             if(
-                u32(previous_pixel.x) < (mandelbrot.width - 1u)
-                && u32(previous_pixel.y) < (mandelbrot.height - 1u)
-                && previous_pixel.x > 1
-                && previous_pixel.y > 1
+                u32(previous_pixel.x) < (mandelbrot.width - 2u)
+                && u32(previous_pixel.y) < (mandelbrot.height - 2u)
+                && previous_pixel.x > 2
+                && previous_pixel.y > 2
             ) {
                 let previous_index = u32(previous_pixel.y) * mandelbrot.width + u32(previous_pixel.x);
                 // mandelbrotTexture[index] equal a sample of the five pixel around the previous pixel
-                mandelbrotTexture[index] = (
-                    previousMandelbrotTexture[previous_index]
-                    + previousMandelbrotTexture[previous_index + 1u]
-                    + previousMandelbrotTexture[previous_index - 1u]
-                    + previousMandelbrotTexture[previous_index + mandelbrot.width]
-                    + previousMandelbrotTexture[previous_index - mandelbrot.width]
-                ) / 5.0;
-//                mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
+                // if the pixels are > max_iteration, then use the previous pixel
+                // else use the average of the five pixel
+                let previous_iteration = previousMandelbrotTexture[previous_index];
+//                let previous_iteration_1 = previousMandelbrotTexture[previous_index + 1u];
+//                let previous_iteration_2 = previousMandelbrotTexture[previous_index + mandelbrot.width];
+//                let previous_iteration_3 = previousMandelbrotTexture[previous_index + mandelbrot.width + 1u];
+//                let previous_iteration_4 = previousMandelbrotTexture[previous_index + mandelbrot.width - 1u];
+//                let previous_iteration_5 = previousMandelbrotTexture[previous_index - mandelbrot.width];
+//                let previous_iteration_6 = previousMandelbrotTexture[previous_index - mandelbrot.width + 1u];
+//                let previous_iteration_7 = previousMandelbrotTexture[previous_index - mandelbrot.width - 1u];
+//                let previous_iteration_8 = previousMandelbrotTexture[previous_index - 1u];
+                let iteration = f32(previous_mandelbrot.maximum_iterations);
+//                if(
+//                    previous_iteration >= iteration
+//                    || previous_iteration_1 > iteration
+//                    || previous_iteration_2 > iteration
+//                    || previous_iteration_3 > iteration
+//                    || previous_iteration_4 > iteration
+//                    || previous_iteration_5 > iteration
+//                    || previous_iteration_6 > iteration
+//                    || previous_iteration_7 > iteration
+//                    || previous_iteration_8 > iteration
+//                ) {
+                 mandelbrotTexture[index] = previous_iteration;
+//                } else {
+//                    mandelbrotTexture[index] = (
+//                    previous_iteration
+//                    + previous_iteration_1
+//                    + previous_iteration_2
+//                    + previous_iteration_3
+//                    + previous_iteration_4
+//                    + previous_iteration_5
+//                    + previous_iteration_6
+//                    + previous_iteration_7
+//                    + previous_iteration_8
+//                    ) / 18.0;
+//                }
             } else {
                 compute_iteration(dc, index);
             }
