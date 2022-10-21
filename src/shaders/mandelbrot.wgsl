@@ -146,11 +146,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let movement = mandelbrot.center_delta - previous_mandelbrot.center_delta;
     let movement_x = movement.x / (f32(mandelbrot.width) / f32(mandelbrot.height)) / mandelbrot.zoom;
     let movement_y = movement.y / mandelbrot.zoom;
-    let previous_pixel = vec2<i32>(
-        i32((in.coord.x + movement_x + 1.0) / 2.0 * f32(mandelbrot.width)),
-        i32((in.coord.y + movement_y + 1.0) / 2.0 * f32(mandelbrot.height))
-    );
     if(movement_x != 0.0 || movement_y != 0.0) {
+        let previous_pixel = vec2<i32>(
+            i32((in.coord.x + movement_x + 1.0) / 2.0 * f32(mandelbrot.width)),
+            i32((in.coord.y + movement_y + 1.0) / 2.0 * f32(mandelbrot.height))
+        );
         if(
             u32(previous_pixel.x) < mandelbrot.width
             && u32(previous_pixel.y) < mandelbrot.height
@@ -161,29 +161,47 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
         } else {
             compute_iteration(dc, index);
+            return color;
         }
     }
     if(
         mandelbrot.zoom != previous_mandelbrot.zoom
     ) {
+        // a var that contain the norm of the in.coord vector
+        let norm = sqrt(in.coord.x * in.coord.x + in.coord.y * in.coord.y);
+        // make the norm follow a square curve
+        let norm_square = 1u + u32(norm * norm * 320.0);
         if(
-           !(pixel.x % 20u == (mandelbrot.generation % 20u))
-        && !(pixel.y % 20u == ((mandelbrot.generation + 1u) % 20u))
-        && (abs(in.coord.x) > 0.10 || abs(in.coord.y) > 0.10)
+           !(pixel.x % norm_square == (mandelbrot.generation % norm_square))
+        && !(pixel.y % norm_square == (mandelbrot.generation % norm_square))
         ) {
             let zoom_factor = mandelbrot.zoom / previous_mandelbrot.zoom;
             let previous_pixel = vec2<i32>(
                 i32((in.coord.x * zoom_factor + 1.0) / 2.0 * f32(mandelbrot.width)),
                 i32((in.coord.y * zoom_factor + 1.0) / 2.0 * f32(mandelbrot.height))
             );
-            let previous_index = u32(previous_pixel.y) * mandelbrot.width + u32(previous_pixel.x);
-            mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
+            if(
+                u32(previous_pixel.x) < (mandelbrot.width - 1u)
+                && u32(previous_pixel.y) < (mandelbrot.height - 1u)
+                && previous_pixel.x > 1
+                && previous_pixel.y > 1
+            ) {
+                let previous_index = u32(previous_pixel.y) * mandelbrot.width + u32(previous_pixel.x);
+                // mandelbrotTexture[index] equal a sample of the five pixel around the previous pixel
+                mandelbrotTexture[index] = (
+                    previousMandelbrotTexture[previous_index]
+                    + previousMandelbrotTexture[previous_index + 1u]
+                    + previousMandelbrotTexture[previous_index - 1u]
+                    + previousMandelbrotTexture[previous_index + mandelbrot.width]
+                    + previousMandelbrotTexture[previous_index - mandelbrot.width]
+                ) / 5.0;
+//                mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
+            } else {
+                compute_iteration(dc, index);
+            }
         } else {
             compute_iteration(dc, index);
         }
     }
-
-
-
     return color;
 }
