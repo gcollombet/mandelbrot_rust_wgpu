@@ -80,6 +80,7 @@ impl GameState for MandelbrotState {
         engine.update_buffer(GameBuffer::MandelbrotOrbitPointSuite as usize);
         // engine.update_buffer(GameBuffer::MandelbrotIterationTexturePrevious as usize);
         self.previous_mandelbrot.data.deref().borrow_mut().from(&self.mandelbrot.data.deref().borrow());
+        // engine.update_buffer(GameBuffer::MandelbrotIterationTexture as usize);
     }
 
     fn input(&mut self, event: &Event<()>, engine: &mut Engine) {
@@ -91,11 +92,11 @@ impl GameState for MandelbrotState {
                     self.mandelbrot_iteration_texture
                         .deref()
                         .borrow_mut()
-                        .resize((physical_size.width * physical_size.height) as usize, 0.0);
+                        .resize((physical_size.width * physical_size.height) as usize, -1.0);
                     self.previous_mandelbrot_iteration_texture
                         .deref()
                         .borrow_mut()
-                        .resize((physical_size.width * physical_size.height) as usize, 0.0);
+                        .resize((physical_size.width * physical_size.height) as usize, -1.0);
                     engine.update_buffer(GameBuffer::MandelbrotIterationTexture as usize);
                     engine.update_buffer(GameBuffer::MandelbrotIterationTexturePrevious as usize);
                     self.size = *physical_size;
@@ -108,11 +109,11 @@ impl GameState for MandelbrotState {
                     self.mandelbrot_iteration_texture
                         .deref()
                         .borrow_mut()
-                        .resize((new_inner_size.width * new_inner_size.height) as usize, 0.0);
+                        .resize((new_inner_size.width * new_inner_size.height) as usize, -1.0);
                     self.previous_mandelbrot_iteration_texture
                         .deref()
                         .borrow_mut()
-                        .resize((new_inner_size.width * new_inner_size.height) as usize, 0.0);
+                        .resize((new_inner_size.width * new_inner_size.height) as usize, -1.0);
                     engine.update_buffer(GameBuffer::MandelbrotIterationTexture as usize);
                     engine.update_buffer(GameBuffer::MandelbrotIterationTexturePrevious as usize);
                     self.size = new_inner_size;
@@ -269,10 +270,10 @@ impl MandelbrotState {
         let mandelbrot = MandelbrotEngine::new(100, size.width, size.height);
         let previous_mandelbrot = MandelbrotEngine::new(100, size.width, size.height);
         let mandelbrot_iteration_texture =
-            Rc::new(RefCell::new(vec![0.0; (size.width * size.height) as usize]));
+            Rc::new(RefCell::new(vec![-1.0; (size.width * size.height) as usize]));
         // create a buffer to store the previous mandelbrot texture
         let mandelbrot_iteration_texture_previous =
-            Rc::new(RefCell::new(vec![0.0; (size.width * size.height) as usize]));
+            Rc::new(RefCell::new(vec![-1.0; (size.width * size.height) as usize]));
         // create a buffer to store the z complex (a tuple of two float values) of the mandelbrot
         let mandelbrot_z_texture = Rc::new(RefCell::new(vec![
             [0.0, 0.0];
