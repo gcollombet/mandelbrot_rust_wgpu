@@ -133,38 +133,24 @@ fn compute_iteration(dc: vec2<f32>, index: u32) {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    // make a random number between 0 and 1 from mandelbrot.generation
+    let random = fract(sin(f32(mandelbrot.generation) * 12.9898) * 43758.5453);
     var pixel = vec2<u32>(
         u32((in.coord.x + 1.0) / 2.0 * f32(mandelbrot.width)),
         u32((in.coord.y + 1.0) / 2.0 * f32(mandelbrot.height))
     );
     var index = pixel.y * mandelbrot.width + pixel.x;
     var dc = vec2<f32>(
-        mandelbrot.center_delta.x + in.coord.x * f32(mandelbrot.width) / f32(mandelbrot.height) * mandelbrot.zoom ,
-        mandelbrot.center_delta.y + in.coord.y * mandelbrot.zoom
+        mandelbrot.center_delta.x + (((random - 0.5) / f32(mandelbrot.width)) + in.coord.x) * f32(mandelbrot.width) / f32(mandelbrot.height) * mandelbrot.zoom ,
+        mandelbrot.center_delta.y + (((random - 0.5) / f32(mandelbrot.height)) + in.coord.y) * mandelbrot.zoom
     );
     let movement = mandelbrot.center_delta - previous_mandelbrot.center_delta;
     let movement_x = movement.x / (f32(mandelbrot.width) / f32(mandelbrot.height)) / mandelbrot.zoom;
     let movement_y = movement.y / mandelbrot.zoom;
-    if(movement_x != 0.0 || movement_y != 0.0) {
-        let previous_pixel = vec2<i32>(
-            i32((in.coord.x + movement_x + 1.0) / 2.0 * f32(mandelbrot.width)),
-            i32((in.coord.y + movement_y + 1.0) / 2.0 * f32(mandelbrot.height))
-        );
-        if(
-            u32(previous_pixel.x) < mandelbrot.width
-            && u32(previous_pixel.y) < mandelbrot.height
-            && previous_pixel.x > 0
-            && previous_pixel.y > 0
-        ) {
-            let previous_index = u32(previous_pixel.y) * mandelbrot.width + u32(previous_pixel.x);
-            mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
-        } else {
-            compute_iteration(dc, index);
-//            return colorize(in.coord, dc, mandelbrotTexture[index]);
-        }
-    }
     if(
         mandelbrot.zoom != previous_mandelbrot.zoom
+        || movement_x != 0.0
+        || movement_y != 0.0
     ) {
         // a var that contain the norm of the in.coord vector
         let norm = sqrt(in.coord.x * in.coord.x + in.coord.y * in.coord.y);
@@ -175,12 +161,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let zoom_factor = mandelbrot.zoom / previous_mandelbrot.zoom;
         let screen_ration = f32(mandelbrot.width) / f32(mandelbrot.height);
         let previous_pixel = vec2<f32>(
-            (in.coord.x * zoom_factor + 1.0) / 2.0 * f32(mandelbrot.width),
-            (in.coord.y * zoom_factor + 1.0) / 2.0 * f32(mandelbrot.height)
+            (in.coord.x * zoom_factor + movement_x + 1.0) / 2.0 * f32(mandelbrot.width),
+            (in.coord.y * zoom_factor + movement_y + 1.0) / 2.0 * f32(mandelbrot.height)
         );
         let previous_index = u32(previous_pixel.y) * mandelbrot.width + u32(previous_pixel.x);
-        // make a random number between 0 and 1 from mandelbrot.generation
-        let random = fract(sin(f32(mandelbrot.generation) * 12.9898) * 43758.5453);
         if(
            !(pixel.x % norm_square == u32(random * f32(norm_square)))
         && !(pixel.y % norm_square == u32(random * f32(norm_square)))
