@@ -160,7 +160,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
         } else {
             compute_iteration(dc, index);
-            return colorize(in.coord, dc, mandelbrotTexture[index]);
+//            return colorize(in.coord, dc, mandelbrotTexture[index]);
         }
     }
     if(
@@ -191,49 +191,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 && previous_pixel.x > 0.0
                 && previous_pixel.y > 0.0
             ) {
-//                let x0 = u32(floor(previous_pixel.x));
-//                let x1 = x0 + 1u;
-//                let y0 = u32(floor(previous_pixel.y));
-//                let y1 = y0 + 1u;
-//                let x = previous_pixel.x - f32(x0);
-//                let y = previous_pixel.y - f32(y0);
-//                let index00 = y0 * mandelbrot.width + x0;
-//                let index01 = y1 * mandelbrot.width + x0;
-//                let index10 = y0 * mandelbrot.width + x1;
-//                let index11 = y1 * mandelbrot.width + x1;
-//                let i00 = previousMandelbrotTexture[index00];
-//                let i01 = previousMandelbrotTexture[index01];
-//                let i10 = previousMandelbrotTexture[index10];
-//                let i11 = previousMandelbrotTexture[index11];
-//                if(i00 == -1.0 || i01 == -1.0 || i10 == -1.0 || i11 == -1.0) {
-//                    compute_iteration(dc, index);
-//                    return colorize(in.coord, dc, mandelbrotTexture[index]);
-//                }
-//                let i0 = mix(i00, i10,  x);
-//                let i1 = mix(i01, i11,  x);
-//                let i = mix(i0, i1,  y);
-//                let maximum_iterations_ratio = f32(mandelbrot.maximum_iterations) / f32(previous_mandelbrot.maximum_iterations);
-//                mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
-
-
-//                if(previousMandelbrotTexture[previous_index] < 0.0 ) {
-//                    mandelbrotTexture[index] = previousMandelbrotTexture[previous_index] - 1.0;
-//                } else {
-                    mandelbrotTexture[index] = previousMandelbrotTexture[previous_index] ;
-//                }
-                return colorize(in.coord, dc, previousMandelbrotTexture[previous_index]);
+                mandelbrotTexture[index] = previousMandelbrotTexture[previous_index] ;
             } else {
                 // le cas du dézoom
-//                compute_iteration(dc, index);
-//                previousMandelbrotTexture[previous_index] = mandelbrotTexture[index];
-                 return colorize(in.coord, dc, mandelbrotTexture[index]);
+                compute_iteration(dc, index);
             }
         } else {
-//            let previous_index = u32(previous_pixel.y) * mandelbrot.width + u32(previous_pixel.x);
             compute_iteration(dc, index);
-//            previousMandelbrotTexture[previous_index] = mandelbrotTexture[index];
-            return colorize(in.coord, dc, mandelbrotTexture[index]);
-//            mandelbrotTexture[index] = (mandelbrotTexture[index] + previousMandelbrotTexture[previous_index]) / 2.0;
         }
     }
     return colorize(in.coord, dc, mandelbrotTexture[index]);
