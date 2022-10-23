@@ -164,7 +164,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             (in.coord.x * zoom_factor + movement_x + 1.0) / 2.0 * f32(mandelbrot.width),
             (in.coord.y * zoom_factor + movement_y + 1.0) / 2.0 * f32(mandelbrot.height)
         );
-        let previous_index = u32(previous_pixel.y) * mandelbrot.width + u32(previous_pixel.x);
+        let previous_index = u32(floor(previous_pixel.y)) * mandelbrot.width + u32(floor(previous_pixel.x));
         if(
            !(pixel.x % norm_square == u32(random * f32(norm_square)))
         && !(pixel.y % norm_square == u32(random * f32(norm_square)))
@@ -175,7 +175,25 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 && previous_pixel.x > 0.0
                 && previous_pixel.y > 0.0
             ) {
-                mandelbrotTexture[index] = previousMandelbrotTexture[previous_index] ;
+                // calculate the bilinear interpolation
+
+//                let x = fract(previous_pixel.x) / 4.0;
+//                let y = fract(previous_pixel.y) / 4.0;
+////                let x = fract(previous_pixel.x) / 2.0;
+////                let y = fract(previous_pixel.y) / 2.0;
+//                let a = previousMandelbrotTexture[previous_index];
+//                let b = previousMandelbrotTexture[previous_index + 1u];
+//                let c = previousMandelbrotTexture[previous_index + mandelbrot.width];
+//                let d = previousMandelbrotTexture[previous_index + mandelbrot.width + 1u];
+//                let a1 = mix(a, b, x);
+//                let b1 = mix(c, d, x);
+//                let z = mix(a1, b1, y);
+//                if(a != -2.0 && b != -2.0 && c != -2.0 && d != -2.0) {
+                    mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
+//                } else {
+//                    mandelbrotTexture[index] = -2.0;
+//                    mandelbrotTexture[index] = previousMandelbrotTexture[previous_index] ;
+//                }
             } else {
                 // le cas du dézoom
                 compute_iteration(dc, index);
