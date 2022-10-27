@@ -17,6 +17,7 @@
 // TODO https://fractalforums.org/fractal-mathematics-and-new-theories/28/another-solution-to-perturbation-glitches/4360/60
 // TODO https://mathr.co.uk/blog/2021-05-14_deep_zoom_theory_and_practice.html
 // TODO https://fractalforums.org/fractal-mathematics-and-new-theories/28/another-solution-to-perturbation-glitches/4360/90
+// TODO https://code.mathr.co.uk/mandelbrot-numerics/blob/HEAD:/c/bin/m-describe.c
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) coordinate: vec2<f32>,
@@ -84,6 +85,11 @@ fn vs_main(
     return out;
 }
 
+// Fragment shader
+fn vpow2(v: vec2<f32>) -> vec2<f32> {
+     return vec2(v.x * v.x - v.y * v.y, 2. * v.x * v.y);
+}
+
 // cmul is a complex multiplication
 fn cmul(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
     return vec2<f32>(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
@@ -127,11 +133,9 @@ fn compute_iteration(dc: vec2<f32>, index: u32) {
     // calculate the iteration
     while (i < max_iteration) {
         z = mandelbrotOrbitPointSuite[ref_i];
-//        dz = cmul(2.0 * z + dz,dz) + dc;
-//        dz = 2.0 * cmul(dz,z) + dc;
         dz = 2.0 * cmul(dz, z) + cmul(dz, dz) + dc;
         ref_i += 1;
-//        mandelbrotZTexture[index] = dz;
+        mandelbrotZTexture[index] = dz;
         // if squared module of dz
         z = mandelbrotOrbitPointSuite[ref_i] + dz;
         let dot_z = dot(z, z);
@@ -145,12 +149,12 @@ fn compute_iteration(dc: vec2<f32>, index: u32) {
             ref_i = 0;
         }
         //  if is lower then a epsilon value, then we are inside the mandelbrot set
-//        if (dot_dz < epsilon) {
-//            i = max_iteration;
-//            break;
-//        } else {
+        if (dot_z < epsilon) {
+            i = max_iteration;
+            break;
+        } else {
            i += 1.0;
-//        }
+        }
     }
     if(i >= max_iteration) {
         i = -1.0;
@@ -175,7 +179,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // rotate the pixel by a var name angle
     // angle vari between 0 and 2 pi and is calculated from the mandelbrot.time_elapsed
-    let angle = 0.0 * 6.28;
+    let angle = mandelbrot.time_elapsed * 0.0 * 6.28;
 //    var pixel_rotated = vec2<u32>(
 //        u32(f32(pixel.x) * cos(angle) - f32(pixel.y) * sin(angle)),
 //        u32(f32(pixel.x) * sin(angle) + f32(pixel.y) * cos(angle))
