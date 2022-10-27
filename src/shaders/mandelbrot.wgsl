@@ -7,7 +7,16 @@
 // TODO https://en.wikibooks.org/wiki/Fractals/Iterations_in_the_complex_plane/demm#Interior_distance_estimation
 // TODO Render with max iterations 1000 and then render another 1000 in the remaning area
 // TODO Use arbitraty precision number to calculate orbit
-
+// TODO https://www.shadertoy.com/view/wdBfDK Smart AA
+// TODO https://www.shadertoy.com/view/4sdXWX
+// TODO https://www.shadertoy.com/view/lsX3W4 Estimation de la distance à la frontière
+// TODO https://www.shadertoy.com/view/ldf3DN Orbit traps
+// TODO infinite zoom https://www.shadertoy.com/view/7ly3Wh
+// TODO https://www.shadertoy.com/view/NtKXRy Infinite zoom
+// TODO https://fractalforums.org/fractal-mathematics-and-new-theories/28/another-solution-to-perturbation-glitches/4360
+// TODO https://fractalforums.org/fractal-mathematics-and-new-theories/28/another-solution-to-perturbation-glitches/4360/60
+// TODO https://mathr.co.uk/blog/2021-05-14_deep_zoom_theory_and_practice.html
+// TODO https://fractalforums.org/fractal-mathematics-and-new-theories/28/another-solution-to-perturbation-glitches/4360/90
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) coordinate: vec2<f32>,
@@ -20,15 +29,23 @@ struct VertexOutput {
 
 // Define the uniform buffer from Mandelbrot Shader struct
 struct Mandelbrot {
+    // the number of frame rendered so far
     generation: u32,
+    // the time elapsed since the start of the program
     time_elapsed: f32,
+    // the zoom factor
     zoom: f32,
+    // the delta between the the dc dot and the  mandelbrot coordinate at the screen center
     center_delta: vec2<f32>,
     epsilon: f32,
     maximum_iterations: u32,
+    // the width in pixel of the screen
     width: u32,
+    // the height in pixel of the screen
     height: u32,
+    // the maximum value to consider the point is in the mandelbrot set
     mu: f32,
+    // the color palette scale factor
     color_palette_scale: f32,
 };
 
@@ -72,6 +89,12 @@ fn cmul(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
     return vec2<f32>(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
 }
 
+// cdiv is a complex division
+fn cdiv(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
+    var denominator: f32 = b.x * b.x + b.y * b.y;
+    return vec2<f32>((a.x * b.x + a.y * b.y) / denominator, (a.y * b.x - a.x * b.y) / denominator);
+}
+
 // create a function that colorize a pixel based on the number of iterations has seen below
 fn colorize(coordinate: vec2<f32>, dc: vec2<f32>, iterations: f32) -> vec4<f32> {
     var color = vec4<f32>(0.0,0.0,0.0,1.0);
@@ -82,7 +105,7 @@ fn colorize(coordinate: vec2<f32>, dc: vec2<f32>, iterations: f32) -> vec4<f32> 
         color = vec4<f32>(
             0.5 + 0.5 * cos(t * 6.28 + 1.4 + sin(dx) - 0.5),
             0.5 + 0.5 * sin(t * 5.88 - 3.14 + sin(dy)),
-            0.5 + 0.5 * cos(t * 3.14 - 3.14 + cos(dx * 3.14) - 0.5),
+            0.5 + 0.5 * cos(t * 3.14 - 3.14 + cos(dx * 3.14) ),
             1.0
         );
     } else {
@@ -92,34 +115,44 @@ fn colorize(coordinate: vec2<f32>, dc: vec2<f32>, iterations: f32) -> vec4<f32> 
 }
 
 fn compute_iteration(dc: vec2<f32>, index: u32) {
-    var iteration = f32(mandelbrot.maximum_iterations);
+    var max_iteration = f32(mandelbrot.maximum_iterations);
     // draw a mandelbrot set
     var z = mandelbrotOrbitPointSuite[0];
     var dz = vec2<f32>(0.0, 0.0);
     var i = 0.0;
+    var ref_i = 0;
     var max = mandelbrot.mu;
     // create an epsilon var that is smaller when the zoom is bigger
     var epsilon = mandelbrot.epsilon / pow(4.0, log2(1.0 / mandelbrot.zoom)) ;
     // calculate the iteration
-    while (i < iteration) {
-        z = mandelbrotOrbitPointSuite[u32(i)];
-        dz = cmul(2.0 * z + dz,dz) + dc;
-        mandelbrotZTexture[index] = dz;
+    while (i < max_iteration) {
+        z = mandelbrotOrbitPointSuite[ref_i];
+//        dz = cmul(2.0 * z + dz,dz) + dc;
+//        dz = 2.0 * cmul(dz,z) + dc;
+        dz = 2.0 * dz * z + dz * dz + dc;
+        ref_i += 1;
+//        mandelbrotZTexture[index] = dz;
         // if squared module of dz
-        let dot_dz = dot(dz, dz);
+        z = z + dz;
+        let dot_z = dot(z, z);
          // if is bigger than a max value, then we are out of the mandelbrot set
-        if (dot_dz >= max) {
+        if (dot_z >= max) {
             break;
+        }
+        let dot_dz = dot(dz, dz);
+        if (dot_z < dot_dz || f32(ref_i) == max_iteration) {
+            dz = z;
+            ref_i = 0;
         }
         //  if is lower then a epsilon value, then we are inside the mandelbrot set
-        if (dot_dz < epsilon) {
-            i = iteration;
-            break;
-        } else {
+//        if (dot_dz < epsilon) {
+//            i = iteration;
+//            break;
+//        } else {
            i += 1.0;
-        }
+//        }
     }
-    if(i >= iteration) {
+    if(i >= max_iteration) {
         i = -1.0;
     } else {
         // add the rest to i to get a smooth color gradient
@@ -139,11 +172,22 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         u32((in.coord.x + 1.0) / 2.0 * f32(mandelbrot.width)),
         u32((in.coord.y + 1.0) / 2.0 * f32(mandelbrot.height))
     );
+
+    // rotate the pixel by a var name angle
+    // angle vari between 0 and 2 pi and is calculated from the mandelbrot.time_elapsed
+    let angle = 0.0 * 6.28;
+//    var pixel_rotated = vec2<u32>(
+//        u32(f32(pixel.x) * cos(angle) - f32(pixel.y) * sin(angle)),
+//        u32(f32(pixel.x) * sin(angle) + f32(pixel.y) * cos(angle))
+//    );
+//    pixel = pixel_rotated;
+
     var index = pixel.y * mandelbrot.width + pixel.x;
     var dc = vec2<f32>(
-        mandelbrot.center_delta.x + (((random - 0.5) / f32(mandelbrot.width)) + in.coord.x) * f32(mandelbrot.width) / f32(mandelbrot.height) * mandelbrot.zoom ,
-        mandelbrot.center_delta.y + (((random - 0.5) / f32(mandelbrot.height)) + in.coord.y) * mandelbrot.zoom
+        mandelbrot.center_delta.x + (((random - 0.5) / f32(mandelbrot.width)) + (in.coord.x  * f32(mandelbrot.width) / f32(mandelbrot.height) *  cos(angle) - in.coord.y * sin(angle))) * mandelbrot.zoom ,
+        mandelbrot.center_delta.y + (((random - 0.5) / f32(mandelbrot.height)) + (in.coord.x  * f32(mandelbrot.width) / f32(mandelbrot.height) *  sin(angle) + in.coord.y * cos(angle))) * mandelbrot.zoom
     );
+
     let movement = mandelbrot.center_delta - previous_mandelbrot.center_delta;
     let movement_x = movement.x / (f32(mandelbrot.width) / f32(mandelbrot.height)) / mandelbrot.zoom;
     let movement_y = movement.y / mandelbrot.zoom;
@@ -160,7 +204,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let norm_square = 1u + u32(norm * norm * norm_mandelbrot / 50.0);
         let zoom_factor = mandelbrot.zoom / previous_mandelbrot.zoom;
         let screen_ration = f32(mandelbrot.width) / f32(mandelbrot.height);
-        let previous_pixel = vec2<f32>(
+        var previous_pixel = vec2<f32>(
             (in.coord.x * zoom_factor + movement_x + 1.0) / 2.0 * f32(mandelbrot.width),
             (in.coord.y * zoom_factor + movement_y + 1.0) / 2.0 * f32(mandelbrot.height)
         );
@@ -175,25 +219,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 && previous_pixel.x > 0.0
                 && previous_pixel.y > 0.0
             ) {
-                // calculate the bilinear interpolation
-
-//                let x = fract(previous_pixel.x) / 4.0;
-//                let y = fract(previous_pixel.y) / 4.0;
-////                let x = fract(previous_pixel.x) / 2.0;
-////                let y = fract(previous_pixel.y) / 2.0;
-//                let a = previousMandelbrotTexture[previous_index];
-//                let b = previousMandelbrotTexture[previous_index + 1u];
-//                let c = previousMandelbrotTexture[previous_index + mandelbrot.width];
-//                let d = previousMandelbrotTexture[previous_index + mandelbrot.width + 1u];
-//                let a1 = mix(a, b, x);
-//                let b1 = mix(c, d, x);
-//                let z = mix(a1, b1, y);
-//                if(a != -2.0 && b != -2.0 && c != -2.0 && d != -2.0) {
-                    mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
-//                } else {
-//                    mandelbrotTexture[index] = -2.0;
-//                    mandelbrotTexture[index] = previousMandelbrotTexture[previous_index] ;
-//                }
+                mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
             } else {
                 // le cas du dézoom
                 compute_iteration(dc, index);
