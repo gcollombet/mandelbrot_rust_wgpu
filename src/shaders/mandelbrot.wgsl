@@ -129,11 +129,11 @@ fn compute_iteration(dc: vec2<f32>, index: u32) {
         z = mandelbrotOrbitPointSuite[ref_i];
 //        dz = cmul(2.0 * z + dz,dz) + dc;
 //        dz = 2.0 * cmul(dz,z) + dc;
-        dz = 2.0 * dz * z + dz * dz + dc;
+        dz = 2.0 * cmul(dz, z) + cmul(dz, dz) + dc;
         ref_i += 1;
 //        mandelbrotZTexture[index] = dz;
         // if squared module of dz
-        z = z + dz;
+        z = mandelbrotOrbitPointSuite[ref_i] + dz;
         let dot_z = dot(z, z);
          // if is bigger than a max value, then we are out of the mandelbrot set
         if (dot_z >= max) {
@@ -146,7 +146,7 @@ fn compute_iteration(dc: vec2<f32>, index: u32) {
         }
         //  if is lower then a epsilon value, then we are inside the mandelbrot set
 //        if (dot_dz < epsilon) {
-//            i = iteration;
+//            i = max_iteration;
 //            break;
 //        } else {
            i += 1.0;

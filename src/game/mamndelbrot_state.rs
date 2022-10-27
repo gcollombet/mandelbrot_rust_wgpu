@@ -59,7 +59,7 @@ impl GameState for MandelbrotState {
             );
         }
         self.mandelbrot.set_maximum_iterations(
-            ((1.0 + (1.0 / self.mandelbrot.zoom()).log(2.1).clamp(0.0, 800.0)) * 1000.0) as u32,
+            ((1.0 + (1.0 / self.mandelbrot.zoom()).log(2.1).clamp(0.0, 800.0)) * 100.0) as u32,
         );
         self.move_speed.0 *= 0.05_f32.powf(delta_time);
         self.move_speed.1 *= 0.05_f32.powf(delta_time);
