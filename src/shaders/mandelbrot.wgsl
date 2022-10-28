@@ -138,6 +138,7 @@ fn compute_iteration(dc: vec2<f32>, index: u32) {
     var z = mandelbrotOrbitPointSuite[0];
     var dz = vec2<f32>(0.0, 0.0);
     var der = vec2<f32>(1.0, 0.0);
+    var distance = 0.0;
     var i = 0.0;
     var ref_i = 0;
     var max = mandelbrot.mu;
@@ -161,6 +162,7 @@ fn compute_iteration(dc: vec2<f32>, index: u32) {
             i = -3.0;
             break;
         }
+
         der = cmul(der * 2.0, z);
         let dot_dz = dot(dz, dz);
         if (dot_z < dot_dz || f32(ref_i) == max_iteration) {
@@ -240,6 +242,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             ) {
 //                mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
                 compute_iteration(dc, index);
+
+//                compute_iteration(dc, index);
 
             } else {
                 // le cas du dézoom

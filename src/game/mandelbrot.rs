@@ -179,11 +179,11 @@ pub struct MandelbrotEngine {
 impl Default for MandelbrotEngine {
     fn default() -> Self {
         let mut orbit_point_suite = Vec::new();
-        orbit_point_suite.resize_with(10000000, || [0.0, 0.0]);
+        orbit_point_suite.resize_with(1000000, || [0.0, 0.0]);
         Self {
             near_orbit_coordinate: (
-                BigFloat::parse("-1.749922480927599928271333687542289453030433024473703345006508521395924860650654081299355473751219976598678491114359225427863893386542382475600444642781285056640754").unwrap(),
-                BigFloat::parse("-0.000000000000959502198314327569948975707202650233401883670299418141500240641361234506320676962536124684582340235944852850785763764700482870569928474715774446003497").unwrap(),
+                BigFloat::parse("-8.005649172439378601652614980060010776762e-1").unwrap(),
+                BigFloat::parse("1.766690913194066364854892309438271746385e-1").unwrap(),
             ),
             last_orbit_z: (0.0.into(), 0.0.into()),
             orbit_point_suite: Rc::new(RefCell::new(orbit_point_suite)),
