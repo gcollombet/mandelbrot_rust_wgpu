@@ -179,7 +179,7 @@ pub struct MandelbrotEngine {
 impl Default for MandelbrotEngine {
     fn default() -> Self {
         let mut orbit_point_suite = Vec::new();
-        orbit_point_suite.resize_with(1000000, || [0.0, 0.0]);
+        orbit_point_suite.resize_with(10000000, || [0.0, 0.0]);
         Self {
             near_orbit_coordinate: (
                 BigFloat::parse("-1.749922480927599928271333687542289453030433024473703345006508521395924860650654081299355473751219976598678491114359225427863893386542382475600444642781285056640754").unwrap(),
@@ -193,7 +193,7 @@ impl Default for MandelbrotEngine {
                 time_elapsed: 0.0,
                 zoom: 10.0,
                 center_delta: [0.0, 0.0],
-                epsilon: 0.00001,
+                epsilon: 0.0001,
                 maximum_iterations: 100,
                 width: 0,
                 height: 0,

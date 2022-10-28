@@ -103,7 +103,7 @@ fn cdiv(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
 }
 
 // create a function that colorize a pixel based on the number of iterations has seen below
-fn colorize(coordinate: vec2<f32>, dc: vec2<f32>, iterations: f32) -> vec4<f32> {
+fn colorize(coordinate: vec2<f32>, dc: vec2<f32>, iterations: f32, derivative: vec2<f32>) -> vec4<f32> {
     var color = vec4<f32>(0.0,0.0,0.0,1.0);
     if(iterations >= 0.0) {
         var t = abs(1.0 - ((iterations + mandelbrot.time_elapsed * 5.0) % mandelbrot.color_palette_scale) * 2.0 / mandelbrot.color_palette_scale);
@@ -115,9 +115,17 @@ fn colorize(coordinate: vec2<f32>, dc: vec2<f32>, iterations: f32) -> vec4<f32> 
             0.5 + 0.5 * cos(t * 3.14 - 3.14 + cos(dx * 3.14) ),
             1.0
         );
+        // multiply the color by the phong shading using the derivative
+        // the light is rotated around the z axis to give a nice effect
+        var light = normalize(vec3<f32>(cos(mandelbrot.time_elapsed * 0.5), sin(mandelbrot.time_elapsed * 0.5), 1.5));
+        var normal = normalize(vec3<f32>(derivative.x, derivative.y, 1.0));
+        var diffuse = max(dot(normal, light), 0.0);
+        // add a little ambient light
+        diffuse = (diffuse * diffuse * diffuse) * 3.0 + 0.5;
+        color = color * diffuse;
     } else {
         if(iterations == -3.0) {
-            color = vec4<f32>(0.5,0.0,0.5,1.0);
+            color = vec4<f32>(0.0,0.0,0.0,1.0);
         }
 //        color = vec4<f32>(abs(iterations / 1000.0),0.0,0.0,1.0);
     }
@@ -134,16 +142,16 @@ fn compute_iteration(dc: vec2<f32>, index: u32) {
     var ref_i = 0;
     var max = mandelbrot.mu;
     // create an epsilon var that is smaller when the zoom is bigger
-    var epsilon = mandelbrot.epsilon  ;
-//    var epsilon = mandelbrot.epsilon / pow(4.0, log2(1.0 / mandelbrot.zoom)) ;
+//    var epsilon = mandelbrot.epsilon  ;
+    var epsilon = mandelbrot.epsilon / pow(1.5, log2(1.0 / mandelbrot.zoom)) ;
     // calculate the iteration
     while (i < max_iteration) {
         z = mandelbrotOrbitPointSuite[ref_i];
         dz = 2.0 * cmul(dz, z) + cmul(dz, dz) + dc;
         ref_i += 1;
-        mandelbrotZTexture[index] = dz;
         // if squared module of dz
         z = mandelbrotOrbitPointSuite[ref_i] + dz;
+        mandelbrotZTexture[index] = cdiv(der,z);
         let dot_z = dot(z, z);
          // if is bigger than a max value, then we are out of the mandelbrot set
         if (dot_z >= max) {
@@ -154,23 +162,14 @@ fn compute_iteration(dc: vec2<f32>, index: u32) {
             break;
         }
         der = cmul(der * 2.0, z);
-//        der = 2.0 * (cmul(der, z) + cmul(dz, der));
-
         let dot_dz = dot(dz, dz);
         if (dot_z < dot_dz || f32(ref_i) == max_iteration) {
             dz = z;
             ref_i = 0;
         }
-        //  if is lower then a epsilon value, then we are inside the mandelbrot set
-//        if (dot(der, der) < epsilon) {
-//            i = -3.0;
-//            break;
-//        } else {
-           i += 1.0;
-//        }
+        i += 1.0;
     }
     if(i >= max_iteration ) {
-
         i = -1.0;
     } else {
         if( i > 0.0) {
@@ -239,7 +238,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 && previous_pixel.x > 0.0
                 && previous_pixel.y > 0.0
             ) {
-                mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
+//                mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
+                compute_iteration(dc, index);
+
             } else {
                 // le cas du dézoom
                 compute_iteration(dc, index);
@@ -248,5 +249,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             compute_iteration(dc, index);
         }
     }
-    return colorize(in.coord, dc, mandelbrotTexture[index]);
+    return colorize(in.coord, dc, mandelbrotTexture[index], mandelbrotZTexture[index]);
 }

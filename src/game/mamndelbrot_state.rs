@@ -59,7 +59,7 @@ impl GameState for MandelbrotState {
             );
         }
         self.mandelbrot.set_maximum_iterations(
-            ((1.0 + (1.0 / self.mandelbrot.zoom()).log(2.1).clamp(0.0, 100.0)) * 10000.0) as u32,
+            ((1.0 + (1.0 / self.mandelbrot.zoom()).log(2.1).clamp(0.0, 100.0)) * 100.0) as u32,
         );
         self.move_speed.0 *= 0.05_f32.powf(delta_time);
         self.move_speed.1 *= 0.05_f32.powf(delta_time);
@@ -97,7 +97,12 @@ impl GameState for MandelbrotState {
                         .deref()
                         .borrow_mut()
                         .resize((physical_size.width * physical_size.height) as usize, -2.0);
+                    self.mandelbrot_z_texture
+                        .deref()
+                        .borrow_mut()
+                        .resize((physical_size.width * physical_size.height) as usize, [0.0, 0.0]);
                     engine.update_buffer(GameBuffer::MandelbrotIterationTexture as usize);
+                    engine.update_buffer(GameBuffer::MandelbrotZTexture as usize);
                     engine.update_buffer(GameBuffer::MandelbrotIterationTexturePrevious as usize);
                     self.size = *physical_size;
                 }
@@ -114,7 +119,12 @@ impl GameState for MandelbrotState {
                         .deref()
                         .borrow_mut()
                         .resize((new_inner_size.width * new_inner_size.height) as usize, -2.0);
+                    self.mandelbrot_z_texture
+                        .deref()
+                        .borrow_mut()
+                        .resize((new_inner_size.width * new_inner_size .height) as usize, [0.0, 0.0]);
                     engine.update_buffer(GameBuffer::MandelbrotIterationTexture as usize);
+                    engine.update_buffer(GameBuffer::MandelbrotZTexture as usize);
                     engine.update_buffer(GameBuffer::MandelbrotIterationTexturePrevious as usize);
                     self.size = new_inner_size;
                 }
