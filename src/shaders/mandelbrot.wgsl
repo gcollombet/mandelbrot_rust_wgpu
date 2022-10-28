@@ -18,6 +18,7 @@
 // TODO https://mathr.co.uk/blog/2021-05-14_deep_zoom_theory_and_practice.html
 // TODO https://fractalforums.org/fractal-mathematics-and-new-theories/28/another-solution-to-perturbation-glitches/4360/90
 // TODO https://code.mathr.co.uk/mandelbrot-numerics/blob/HEAD:/c/bin/m-describe.c
+// https://randomascii.wordpress.com/2012/01/11/tricks-with-the-floating-point-format/ About Floating point
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) coordinate: vec2<f32>,
@@ -115,6 +116,9 @@ fn colorize(coordinate: vec2<f32>, dc: vec2<f32>, iterations: f32) -> vec4<f32> 
             1.0
         );
     } else {
+        if(iterations == -3.0) {
+            color = vec4<f32>(0.5,0.0,0.5,1.0);
+        }
 //        color = vec4<f32>(abs(iterations / 1000.0),0.0,0.0,1.0);
     }
     return color;
@@ -125,11 +129,13 @@ fn compute_iteration(dc: vec2<f32>, index: u32) {
     // draw a mandelbrot set
     var z = mandelbrotOrbitPointSuite[0];
     var dz = vec2<f32>(0.0, 0.0);
+    var der = vec2<f32>(1.0, 0.0);
     var i = 0.0;
     var ref_i = 0;
     var max = mandelbrot.mu;
     // create an epsilon var that is smaller when the zoom is bigger
-    var epsilon = mandelbrot.epsilon / pow(4.0, log2(1.0 / mandelbrot.zoom)) ;
+    var epsilon = mandelbrot.epsilon  ;
+//    var epsilon = mandelbrot.epsilon / pow(4.0, log2(1.0 / mandelbrot.zoom)) ;
     // calculate the iteration
     while (i < max_iteration) {
         z = mandelbrotOrbitPointSuite[ref_i];
@@ -143,26 +149,36 @@ fn compute_iteration(dc: vec2<f32>, index: u32) {
         if (dot_z >= max) {
             break;
         }
+        if (dot(der, der) < epsilon) {
+            i = -3.0;
+            break;
+        }
+        der = cmul(der * 2.0, z);
+//        der = 2.0 * (cmul(der, z) + cmul(dz, der));
+
         let dot_dz = dot(dz, dz);
         if (dot_z < dot_dz || f32(ref_i) == max_iteration) {
             dz = z;
             ref_i = 0;
         }
         //  if is lower then a epsilon value, then we are inside the mandelbrot set
-        if (dot_z < epsilon) {
-            i = max_iteration;
-            break;
-        } else {
+//        if (dot(der, der) < epsilon) {
+//            i = -3.0;
+//            break;
+//        } else {
            i += 1.0;
-        }
+//        }
     }
-    if(i >= max_iteration) {
+    if(i >= max_iteration ) {
+
         i = -1.0;
     } else {
-        // add the rest to i to get a smooth color gradient
-        let log_zn = log(dz.x * dz.x + dz.y * dz.y) / 2.0;
-        var nu = log(log_zn / log(2.0)) / log(2.0);
-        i += (1.0 - nu) ;
+        if( i > 0.0) {
+            // add the rest to i to get a smooth color gradient
+            let log_zn = log(dz.x * dz.x + dz.y * dz.y) / 2.0;
+            var nu = log(log_zn / log(2.0)) / log(2.0);
+            i += (1.0 - nu) ;
+        }
     }
     // calculate the iteration with the intensity
     mandelbrotTexture[index] = i;
