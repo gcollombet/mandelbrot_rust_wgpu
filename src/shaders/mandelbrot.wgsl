@@ -37,6 +37,7 @@ struct Mandelbrot {
     time_elapsed: f32,
     // the zoom factor
     zoom: f32,
+    angle: f32,
     // the delta between the the dc dot and the  mandelbrot coordinate at the screen center
     center_delta: vec2<f32>,
     epsilon: f32,
@@ -68,12 +69,14 @@ var<storage, read_write> mandelbrotTexture: array<f32>;
 @group(0) @binding(3)
 var<storage, read_write> previousMandelbrotTexture: array<f32>;
 @group(0) @binding(4)
-var<storage, read_write> mandelbrotZTexture: array<vec2<f32>>;
+var<storage, read_write> mandelbrotData: array<vec2<f32>>;
+@group(0) @binding(5)
+var<storage, read_write> previousMandelbrotData: array<vec2<f32>>;
 
 // add the storage buffer
-@group(0) @binding(5)
-var<storage, read_write> mandelbrotOrbitPointSuite: array<vec2<f32>>;
 @group(0) @binding(6)
+var<storage, read_write> mandelbrotOrbitPointSuite: array<vec2<f32>>;
+@group(0) @binding(7)
 var<storage, read_write> lastRenderedMandelbrot: LastRenderedMandelbrot;
 
 @vertex
@@ -107,35 +110,37 @@ fn colorize(coordinate: vec2<f32>, dc: vec2<f32>, iterations: f32, derivative: v
     var color = vec4<f32>(0.0,0.0,0.0,1.0);
     if(iterations >= 0.0) {
         var t = abs(1.0 - ((iterations + mandelbrot.time_elapsed * 5.0) % mandelbrot.color_palette_scale) * 2.0 / mandelbrot.color_palette_scale);
-        var dx = coordinate.x / 1.0 + cos(mandelbrot.time_elapsed / 2.0);
-        var dy = coordinate.y / 1.0 + cos(mandelbrot.time_elapsed / 2.0);
+        var dx = coordinate.x / 8.0 + cos(mandelbrot.time_elapsed / 2.0);
+        var dy = coordinate.y / 8.0 + cos(mandelbrot.time_elapsed / 2.0);
         color = vec4<f32>(
-            0.5 + 0.5 * cos(t * 6.28 + 1.4 + sin(dx) - 0.5),
-            0.5 + 0.5 * sin(t * 5.88 - 3.14 + sin(dy)),
-            0.5 + 0.5 * cos(t * 3.14 - 3.14 + cos(dx * 3.14) ),
+            0.5 + 0.5 * cos(t * 6.28 + 1.4 + sin(dx) + sin(dy)),
+            0.5 + 0.5 * sin(t * 5.88 - 3.14 + sin(dy - dx)),
+            0.5 + 0.5 * cos(t * 3.14 - 3.14 + cos(dx * 3.14) + 1.5 ),
             1.0
         );
+        // make color more saturated
+//        color = color * 1.5;
         // multiply the color by the phong shading using the derivative
         // the light is rotated around the z axis to give a nice effect
-        var light = normalize(vec3<f32>(cos(mandelbrot.time_elapsed * 0.5), sin(mandelbrot.time_elapsed * 0.5), 1.5));
+        var light = normalize(vec3<f32>(cos(mandelbrot.time_elapsed * 0.5), sin(mandelbrot.time_elapsed * 0.5), 0.7));
         var normal = normalize(vec3<f32>(derivative.x, derivative.y, 1.0));
-        var diffuse = max(dot(normal, light), 0.0);
-        color = color * diffuse;
+        var diffuse = max(dot(normal, light), 0.3);
+//        color = color * diffuse;
 //
-//        // add mat effect
-//        var matt = vec3<f32>(0.0, 0.0, 0.0);
-//        if(diffuse > 0.0) {
-//            matt = vec3<f32>(0.1, 0.2, 0.05);
-//        }
+        // add mat effect
+        var matt = vec3<f32>(0.0, 0.0, 0.0);
+        if(diffuse > 0.0) {
+            matt = vec3<f32>(0.1, 0.2, 0.05);
+        }
 //        // add ambient effect
 //        var ambient = vec3<f32>(0.1, 0.1, 0.1);
-//        // add specular effect
-//        var specular = vec3<f32>(0.5, 0.5, 0.5);
-//        var specular_power = 32.0;
-//        var specular_intensity = pow(max(dot(reflect(light, normal), normalize(vec3<f32>(-coordinate.x, -coordinate.y, 1.0))), 0.0), specular_power);
+        // add specular effect
+        var specular = vec3<f32>(0.5, 0.5, 0.5);
+        var specular_power = 3.0;
+        var specular_intensity = pow(max(dot(reflect(light, normal), normalize(vec3<f32>(cos(mandelbrot.time_elapsed * 0.5), sin(mandelbrot.time_elapsed * 0.5), 0.7))), 0.0), specular_power);
+
 //
-//
-//        color = vec4<f32>(color.rgb * (diffuse * (0.8) + 0.2) + specular * specular_intensity + matt, 1.0);
+        color = vec4<f32>(color.rgb * (diffuse * (0.8) + 0.2) , 1.0);
 
         // add a little bit of noise to the color
 //        color = vec4<f32>(color.rgb + vec3<f32>(sin(mandelbrot.time_elapsed * 0.5) * 0.1, cos(mandelbrot.time_elapsed * 0.5) * 0.1, sin(mandelbrot.time_elapsed * 0.5) * 0.1), 1.0);
@@ -176,7 +181,7 @@ fn compute_iteration(dc: vec2<f32>, index: u32) {
         ref_i += 1;
         // if squared module of dz
         z = mandelbrotOrbitPointSuite[ref_i] + dz;
-        mandelbrotZTexture[index] = cdiv(der,z);
+        mandelbrotData[index] = cdiv(der,z);
         let dot_z = dot(z, z);
          // if is bigger than a max value, then we are out of the mandelbrot set
         if (dot_z >= max) {
@@ -220,7 +225,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // rotate the pixel by a var name angle
     // angle vari between 0 and 2 pi and is calculated from the mandelbrot.time_elapsed
-    let angle = mandelbrot.time_elapsed * 0.0 * 6.28;
 //    var pixel_rotated = vec2<u32>(
 //        u32(f32(pixel.x) * cos(angle) - f32(pixel.y) * sin(angle)),
 //        u32(f32(pixel.x) * sin(angle) + f32(pixel.y) * cos(angle))
@@ -229,8 +233,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     var index = pixel.y * mandelbrot.width + pixel.x;
     var dc = vec2<f32>(
-        mandelbrot.center_delta.x + (((random - 0.5) / f32(mandelbrot.width)) + (in.coord.x  * f32(mandelbrot.width) / f32(mandelbrot.height) *  cos(angle) - in.coord.y * sin(angle))) * mandelbrot.zoom ,
-        mandelbrot.center_delta.y + (((random - 0.5) / f32(mandelbrot.height)) + (in.coord.x  * f32(mandelbrot.width) / f32(mandelbrot.height) *  sin(angle) + in.coord.y * cos(angle))) * mandelbrot.zoom
+        mandelbrot.center_delta.x + (((random - 0.5) / f32(mandelbrot.width)) + (in.coord.x  * f32(mandelbrot.width) / f32(mandelbrot.height) *  cos(mandelbrot.angle) - in.coord.y * sin(mandelbrot.angle))) * mandelbrot.zoom ,
+        mandelbrot.center_delta.y + (((random - 0.5) / f32(mandelbrot.height)) + (in.coord.x  * f32(mandelbrot.width) / f32(mandelbrot.height) *  sin(mandelbrot.angle) + in.coord.y * cos(mandelbrot.angle))) * mandelbrot.zoom
     );
 
     let movement = mandelbrot.center_delta - previous_mandelbrot.center_delta;
@@ -238,6 +242,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let movement_y = movement.y / mandelbrot.zoom;
     if(
         mandelbrot.zoom != previous_mandelbrot.zoom
+        || mandelbrot.angle != previous_mandelbrot.angle
         || movement_x != 0.0
         || movement_y != 0.0
     ) {
@@ -249,33 +254,56 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let norm_square = 1u + u32(norm * norm * norm_mandelbrot / 50.0);
         let zoom_factor = mandelbrot.zoom / previous_mandelbrot.zoom;
         let screen_ration = f32(mandelbrot.width) / f32(mandelbrot.height);
-        var previous_pixel = vec2<f32>(
-            (in.coord.x * zoom_factor + movement_x + 1.0) / 2.0 * f32(mandelbrot.width),
-            (in.coord.y * zoom_factor + movement_y + 1.0) / 2.0 * f32(mandelbrot.height)
+        // calculat angle delta from previous_mandelbrot.angle and mandelbrot.angle
+        // angle_delta vari between 0 and 2 pi
+        let angle_delta = mandelbrot.angle - previous_mandelbrot.angle;
+        // scale coord by zoom_factor
+        var coord = in.coord;
+        // scale coord by zoom_factor
+        coord = vec2<f32>(
+            coord.x * zoom_factor,
+            coord.y * zoom_factor
         );
-        let previous_index = u32(floor(previous_pixel.y)) * mandelbrot.width + u32(floor(previous_pixel.x));
+        // translate coord by movement
+        coord = vec2<f32>(
+            coord.x + movement_x,
+            coord.y + movement_y
+        );
+        // rotate coord by angle_delta
+        coord.x *= screen_ration;
+        coord = vec2<f32>(
+            coord.x * cos(angle_delta) - coord.y * sin(angle_delta),
+            coord.x * sin(angle_delta) + coord.y * cos(angle_delta)
+        );
+        coord.x /= screen_ration;
+
+       // calculate the new pixel
+        var previous_pixel = vec2<f32>(
+            (coord.x + 1.0) / 2.0 * f32(mandelbrot.width),
+            (coord.y + 1.0) / 2.0 * f32(mandelbrot.height)
+        );
+        let previous_index = u32(previous_pixel.y) * mandelbrot.width + u32(previous_pixel.x);
         if(
-           !(pixel.x % norm_square == u32(random * f32(norm_square)))
-        && !(pixel.y % norm_square == u32(random * f32(norm_square)))
+           mandelbrot.zoom == previous_mandelbrot.zoom
+           || (
+            !(pixel.x % norm_square == u32(random * f32(norm_square)))
+            && !(pixel.y % norm_square == u32(random * f32(norm_square)))
+           )
         ) {
             if(
-                previous_pixel.x < f32(mandelbrot.width - 1u)
-                && previous_pixel.y < f32(mandelbrot.height - 1u)
-                && previous_pixel.x > 0.0
-                && previous_pixel.y > 0.0
+                previous_pixel.x < f32(mandelbrot.width)
+                && previous_pixel.y < f32(mandelbrot.height)
+                && previous_pixel.x >= 0.0
+                && previous_pixel.y >= 0.0
             ) {
-//                mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
-                compute_iteration(dc, index);
-
-//                compute_iteration(dc, index);
-
+                mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
+                mandelbrotData[index] = previousMandelbrotData[previous_index];
             } else {
-                // le cas du dézoom
                 compute_iteration(dc, index);
             }
         } else {
             compute_iteration(dc, index);
         }
     }
-    return colorize(in.coord, dc, mandelbrotTexture[index], mandelbrotZTexture[index]);
+    return colorize(in.coord, dc, mandelbrotTexture[index], mandelbrotData[index]);
 }

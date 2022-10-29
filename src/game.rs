@@ -27,9 +27,10 @@ enum GameBuffer {
     Mandelbrot = 0,
     PreviousMandelbrot = 1,
     MandelbrotIterationTexture = 2,
-    MandelbrotIterationTexturePrevious = 3,
-    MandelbrotZTexture = 4,
-    MandelbrotOrbitPointSuite = 5,
+    PreviousMandelbrotIterationTexture = 3,
+    MandelbrotData = 4,
+    PreviousMandelbrotData = 5,
+    MandelbrotOrbitPointSuite = 6,
 }
 
 pub struct Game {

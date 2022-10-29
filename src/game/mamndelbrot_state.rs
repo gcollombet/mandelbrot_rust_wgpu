@@ -12,20 +12,20 @@ use winit::event::{
 
 use to_buffer_representation_derive::ToBufferRepresentation;
 
-use crate::game::{GameBuffer, MandelbrotEngine};
 use crate::game::engine::Engine;
-use crate::game::Game;
 use crate::game::game_state::GameState;
 use crate::game::mandelbrot::MandelbrotData;
 use crate::game::to_buffer_representation::ToBufferRepresentation;
+use crate::game::Game;
+use crate::game::{GameBuffer, MandelbrotEngine};
 
 // We need this for Rust to store our data correctly for the shaders
 #[repr(C)]
 // This is so we can store this in a buffer
 #[derive(Copy, Clone, Pod, Zeroable, ToBufferRepresentation)]
 pub struct LastRenderedMandelbrot {
-    pub  center_delta: [f32; 2],
-    pub  zoom: f32,
+    pub center_delta: [f32; 2],
+    pub zoom: f32,
     _padding: u32,
 }
 
@@ -34,7 +34,8 @@ pub struct MandelbrotState {
     previous_mandelbrot: MandelbrotEngine,
     mandelbrot_iteration_texture: Rc<RefCell<Vec<f32>>>,
     previous_mandelbrot_iteration_texture: Rc<RefCell<Vec<f32>>>,
-    mandelbrot_z_texture: Rc<RefCell<Vec<[f32; 2]>>>,
+    mandelbrot_data: Rc<RefCell<Vec<[f32; 2]>>>,
+    previous_mandelbrot_data: Rc<RefCell<Vec<[f32; 2]>>>,
     zoom_speed: f32,
     zoom_acceleration: f32,
     move_speed: (f32, f32),
@@ -45,7 +46,6 @@ pub struct MandelbrotState {
 }
 
 impl GameState for MandelbrotState {
-
     fn update(&mut self, engine: &mut Engine, delta_time: f32) {
         let epsilon = 0.001;
         self.zoom_acceleration *= 0.05_f32.powf(delta_time);
@@ -59,28 +59,40 @@ impl GameState for MandelbrotState {
             );
         }
         self.mandelbrot.set_maximum_iterations(
-            ((1.0 + (1.0 / self.mandelbrot.zoom()).log(2.1).clamp(0.0, 100.0)) * 100.0) as u32,
+            ((1.0 + (1.0 / self.mandelbrot.zoom()).log(2.1).clamp(0.0, 100.0)) * 200.0) as u32,
         );
         self.move_speed.0 *= 0.05_f32.powf(delta_time);
         self.move_speed.1 *= 0.05_f32.powf(delta_time);
         if self.move_speed.0.abs() < epsilon {
             // define a variable that contain value that is randomly 0.01 or -0.01
-            let random = if rand::random() { 0.01 } else { -0.01 };
             self.move_speed.0 = 0.0;
         }
         if self.move_speed.1.abs() < epsilon {
-            let random = if rand::random() { 0.01 } else { -0.01 };
             self.move_speed.1 = 0.0;
         }
         // if move speed > 0 then move by move speed
-        self.mandelbrot.data.deref().borrow_mut().move_by(self.move_speed);
+        self.mandelbrot
+            .data
+            .deref()
+            .borrow_mut()
+            .move_by(self.move_speed);
         self.mandelbrot.update(delta_time);
+        if self.mandelbrot.near_orbit_coordinate != self.previous_mandelbrot.near_orbit_coordinate {
+            self.previous_mandelbrot.near_orbit_coordinate = self.mandelbrot.near_orbit_coordinate;
+            self.previous_mandelbrot
+                .data
+                .deref()
+                .borrow_mut()
+                .center_delta = self.mandelbrot.data.deref().borrow().center_delta;
+        }
         engine.update_buffer(GameBuffer::Mandelbrot as usize);
         engine.update_buffer(GameBuffer::PreviousMandelbrot as usize);
         engine.update_buffer(GameBuffer::MandelbrotOrbitPointSuite as usize);
-        // engine.update_buffer(GameBuffer::MandelbrotIterationTexturePrevious as usize);
-        self.previous_mandelbrot.data.deref().borrow_mut().from(&self.mandelbrot.data.deref().borrow());
-        // engine.update_buffer(GameBuffer::MandelbrotIterationTexture as usize);
+        self.previous_mandelbrot
+            .data
+            .deref()
+            .borrow_mut()
+            .from(&self.mandelbrot.data.deref().borrow());
     }
 
     fn input(&mut self, event: &Event<()>, engine: &mut Engine) {
@@ -97,13 +109,18 @@ impl GameState for MandelbrotState {
                         .deref()
                         .borrow_mut()
                         .resize((physical_size.width * physical_size.height) as usize, -2.0);
-                    self.mandelbrot_z_texture
-                        .deref()
-                        .borrow_mut()
-                        .resize((physical_size.width * physical_size.height) as usize, [0.0, 0.0]);
+                    self.mandelbrot_data.deref().borrow_mut().resize(
+                        (physical_size.width * physical_size.height) as usize,
+                        [0.0, 0.0],
+                    );
+                    self.previous_mandelbrot_data.deref().borrow_mut().resize(
+                        (physical_size.width * physical_size.height) as usize,
+                        [0.0, 0.0],
+                    );
                     engine.update_buffer(GameBuffer::MandelbrotIterationTexture as usize);
-                    engine.update_buffer(GameBuffer::MandelbrotZTexture as usize);
-                    engine.update_buffer(GameBuffer::MandelbrotIterationTexturePrevious as usize);
+                    engine.update_buffer(GameBuffer::MandelbrotData as usize);
+                    engine.update_buffer(GameBuffer::PreviousMandelbrotData as usize);
+                    engine.update_buffer(GameBuffer::PreviousMandelbrotIterationTexture as usize);
                     self.size = *physical_size;
                 }
                 WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
@@ -114,18 +131,30 @@ impl GameState for MandelbrotState {
                     self.mandelbrot_iteration_texture
                         .deref()
                         .borrow_mut()
-                        .resize((new_inner_size.width * new_inner_size.height) as usize, -2.0);
+                        .resize(
+                            (new_inner_size.width * new_inner_size.height) as usize,
+                            -2.0,
+                        );
                     self.previous_mandelbrot_iteration_texture
                         .deref()
                         .borrow_mut()
-                        .resize((new_inner_size.width * new_inner_size.height) as usize, -2.0);
-                    self.mandelbrot_z_texture
-                        .deref()
-                        .borrow_mut()
-                        .resize((new_inner_size.width * new_inner_size .height) as usize, [0.0, 0.0]);
+                        .resize(
+                            (new_inner_size.width * new_inner_size.height) as usize,
+                            -2.0,
+                        );
+                    self.mandelbrot_data.deref().borrow_mut().resize(
+                        (new_inner_size.width * new_inner_size.height) as usize,
+                        [0.0, 0.0],
+                    );
+
+                    self.previous_mandelbrot_data.deref().borrow_mut().resize(
+                        (new_inner_size.width * new_inner_size.height) as usize,
+                        [0.0, 0.0],
+                    );
                     engine.update_buffer(GameBuffer::MandelbrotIterationTexture as usize);
-                    engine.update_buffer(GameBuffer::MandelbrotZTexture as usize);
-                    engine.update_buffer(GameBuffer::MandelbrotIterationTexturePrevious as usize);
+                    engine.update_buffer(GameBuffer::MandelbrotData as usize);
+                    engine.update_buffer(GameBuffer::PreviousMandelbrotData as usize);
+                    engine.update_buffer(GameBuffer::PreviousMandelbrotIterationTexture as usize);
                     self.size = new_inner_size;
                 }
                 // when the mouse scrolls,
@@ -163,12 +192,27 @@ impl GameState for MandelbrotState {
                                 }
                                 // page up
                                 VirtualKeyCode::PageUp => {
-                                    self.mandelbrot.data.deref().borrow_mut().color_palette_scale *= 1.1;
+                                    self.mandelbrot
+                                        .data
+                                        .deref()
+                                        .borrow_mut()
+                                        .color_palette_scale *= 1.1;
                                 }
                                 // page down
                                 VirtualKeyCode::PageDown => {
-                                    let value = self.mandelbrot.data.deref().borrow().color_palette_scale.div(1.1).max(0.1);
-                                    self.mandelbrot.data.deref().borrow_mut().color_palette_scale =value;
+                                    let value = self
+                                        .mandelbrot
+                                        .data
+                                        .deref()
+                                        .borrow()
+                                        .color_palette_scale
+                                        .div(1.1)
+                                        .max(0.1);
+                                    self.mandelbrot
+                                        .data
+                                        .deref()
+                                        .borrow_mut()
+                                        .color_palette_scale = value;
                                 }
                                 // add
                                 VirtualKeyCode::NumpadAdd => {
@@ -210,6 +254,14 @@ impl GameState for MandelbrotState {
                                 }
                                 VirtualKeyCode::Down | VirtualKeyCode::S => {
                                     self.move_speed.1 -= movement;
+                                }
+                                // if e, rotate right
+                                VirtualKeyCode::E => {
+                                    self.mandelbrot.data.deref().borrow_mut().angle += 0.1;
+                                }
+                                // if a, rotate left
+                                VirtualKeyCode::A => {
+                                    self.mandelbrot.data.deref().borrow_mut().angle -= 0.1;
                                 }
                                 _ => {}
                             }
@@ -260,12 +312,10 @@ impl GameState for MandelbrotState {
                     // if the left mouse button is pressed
                     if self.mouse_right_button_pressed {
                         // update the mandelbrot shader coordinates
-                        self.mandelbrot.center_orbit_at(
-                            self.mouse_position.0,
-                            self.mouse_position.1,
-                            self.size.width,
-                            self.size.height,
-                        );
+                        // set the mandebrot angle to the angle form the center of the window to the mouse position
+                        self.mandelbrot.data.deref().borrow_mut().angle = -(position.x as f32
+                            - self.size.width as f32 / 2.0)
+                            .atan2(position.y as f32 - self.size.height as f32 / 2.0);
                     }
                 }
                 _ => {}
@@ -279,15 +329,26 @@ impl MandelbrotState {
     pub fn new(size: PhysicalSize<u32>, engine: &mut Engine) -> Self {
         let mandelbrot = MandelbrotEngine::new(100, size.width, size.height);
         let previous_mandelbrot = MandelbrotEngine::new(100, size.width, size.height);
-        let mandelbrot_iteration_texture =
-            Rc::new(RefCell::new(vec![-2.0; (size.width * size.height) as usize]));
+        let mandelbrot_iteration_texture = Rc::new(RefCell::new(vec![
+            -2.0;
+            (size.width * size.height)
+                as usize
+        ]));
         // create a buffer to store the previous mandelbrot texture
-        let mandelbrot_iteration_texture_previous =
-            Rc::new(RefCell::new(vec![-2.0; (size.width * size.height) as usize]));
+        let previous_mandelbrot_iteration_texture = Rc::new(RefCell::new(vec![
+            -2.0;
+            (size.width * size.height)
+                as usize
+        ]));
         // create a buffer to store the z complex (a tuple of two float values) of the mandelbrot
-        let mandelbrot_z_texture = Rc::new(RefCell::new(vec![
+        let mandelbrot_data = Rc::new(RefCell::new(vec![
             [0.0, 0.0];
             (size.width * size.height) as usize
+        ]));
+        let previous_mandelbrot_data = Rc::new(RefCell::new(vec![
+            [0.0, 0.0];
+            (size.width * size.height)
+                as usize
         ]));
         engine.add_buffer(
             BufferUsages::UNIFORM | BufferUsages::COPY_DST,
@@ -303,53 +364,51 @@ impl MandelbrotState {
         );
         engine.add_buffer(
             BufferUsages::STORAGE | BufferUsages::COPY_DST | BufferUsages::COPY_SRC,
-            BufferBindingType::Storage {
-                read_only: false,
-            },
+            BufferBindingType::Storage { read_only: false },
             ShaderStages::FRAGMENT,
-            mandelbrot_iteration_texture.clone());
-        engine.add_buffer(
-            BufferUsages::STORAGE | BufferUsages::COPY_DST,
-            BufferBindingType::Storage {
-                read_only: false,
-            },
-            ShaderStages::FRAGMENT,
-            mandelbrot_iteration_texture_previous.clone(),
+            mandelbrot_iteration_texture.clone(),
         );
         engine.add_buffer(
             BufferUsages::STORAGE | BufferUsages::COPY_DST,
-            BufferBindingType::Storage {
-                read_only: false,
-            },
+            BufferBindingType::Storage { read_only: false },
             ShaderStages::FRAGMENT,
-                          mandelbrot_z_texture.clone()
+            previous_mandelbrot_iteration_texture.clone(),
+        );
+        engine.add_buffer(
+            BufferUsages::STORAGE | BufferUsages::COPY_DST | BufferUsages::COPY_SRC,
+            BufferBindingType::Storage { read_only: false },
+            ShaderStages::FRAGMENT,
+            mandelbrot_data.clone(),
         );
         engine.add_buffer(
             BufferUsages::STORAGE | BufferUsages::COPY_DST,
-            BufferBindingType::Storage {
-                read_only: false,
-            },
+            BufferBindingType::Storage { read_only: false },
             ShaderStages::FRAGMENT,
-            mandelbrot.orbit_point_suite.clone()
+            previous_mandelbrot_data.clone(),
         );
         engine.add_buffer(
             BufferUsages::STORAGE | BufferUsages::COPY_DST,
-            BufferBindingType::Storage {
-                read_only: false,
-            },
+            BufferBindingType::Storage { read_only: false },
+            ShaderStages::FRAGMENT,
+            mandelbrot.orbit_point_suite.clone(),
+        );
+        engine.add_buffer(
+            BufferUsages::STORAGE | BufferUsages::COPY_DST,
+            BufferBindingType::Storage { read_only: false },
             ShaderStages::FRAGMENT,
             Rc::new(RefCell::new(LastRenderedMandelbrot {
                 zoom: 1.0,
                 center_delta: [0.0, 0.0],
-                _padding: 0
-            }))
+                _padding: 0,
+            })),
         );
         Self {
             mandelbrot,
             previous_mandelbrot,
             mandelbrot_iteration_texture,
-            previous_mandelbrot_iteration_texture: mandelbrot_iteration_texture_previous,
-            mandelbrot_z_texture,
+            previous_mandelbrot_iteration_texture,
+            mandelbrot_data,
+            previous_mandelbrot_data,
             zoom_speed: 0.5,
             zoom_acceleration: 0.0,
             move_speed: (0.0, 0.0),

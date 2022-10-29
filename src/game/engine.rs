@@ -2,8 +2,8 @@ use std::cell::RefCell;
 use std::ops::Deref;
 use std::rc::Rc;
 
-use wgpu::{BufferAddress, BufferBindingType, BufferUsages, ShaderModule, ShaderStages};
 use wgpu::util::DeviceExt;
+use wgpu::{BufferAddress, BufferBindingType, BufferUsages, ShaderModule, ShaderStages};
 use winit::window::{Fullscreen, Window};
 
 use crate::game::engine::bind_group_buffer_entry::BindGroupBufferEntry;
@@ -112,20 +112,26 @@ impl Engine {
             });
         {
             // create a bind group layout from the buffers bind group layouts entries
-            let bind_group_layout = self
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Bind Group Layout"),
-                    entries: &self.buffers.iter().map(|b| b.bind_group_layout_entry).collect::<Vec<_>>(),
-                });
+            let bind_group_layout =
+                self.device
+                    .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                        label: Some("Bind Group Layout"),
+                        entries: &self
+                            .buffers
+                            .iter()
+                            .map(|b| b.bind_group_layout_entry)
+                            .collect::<Vec<_>>(),
+                    });
             // do the same for the bind group
-            let bind_group = self
-                .device
-                .create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: Some("Bind Group"),
-                    layout: &bind_group_layout,
-                    entries: &self.buffers.iter().map(|b| b.bind_group_entry()).collect::<Vec<_>>(),
-                });
+            let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("Bind Group"),
+                layout: &bind_group_layout,
+                entries: &self
+                    .buffers
+                    .iter()
+                    .map(|b| b.bind_group_entry())
+                    .collect::<Vec<_>>(),
+            });
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -144,14 +150,20 @@ impl Engine {
             render_pass.set_bind_group(0, &bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.draw(0..VERTICES.len() as u32, 0..1);
-
         }
         encoder.copy_buffer_to_buffer(
             &self.buffers[2].buffer,
             0,
             &self.buffers[3].buffer,
             0,
-            self.buffers[3].length() as BufferAddress
+            self.buffers[3].length() as BufferAddress,
+        );
+        encoder.copy_buffer_to_buffer(
+            &self.buffers[4].buffer,
+            0,
+            &self.buffers[5].buffer,
+            0,
+            self.buffers[5].length() as BufferAddress,
         );
         // submit will accept anything that implements IntoIter
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -170,17 +182,14 @@ impl Engine {
         visibility: ShaderStages,
         data: Rc<RefCell<dyn ToBufferRepresentation>>,
     ) {
-        self.buffers
-            .push(
-                BindGroupBufferEntry::new(
-                    &self.device,
-                    self.buffers.len() as u32,
-                    visibility,
-                    usage,
-                    buffer_binding_type,
-                    data,
-                )
-            );
+        self.buffers.push(BindGroupBufferEntry::new(
+            &self.device,
+            self.buffers.len() as u32,
+            visibility,
+            usage,
+            buffer_binding_type,
+            data,
+        ));
     }
 
     pub fn create_pipeline(&mut self) {
@@ -191,12 +200,16 @@ impl Engine {
                 source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/mandelbrot.wgsl").into()),
             });
         // create a bind group layout from the buffers bind group layouts entries
-        let bind_group_layout = self
-            .device
-            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("Bind Group Layout"),
-                entries: &self.buffers.iter().map(|b| b.bind_group_layout_entry).collect::<Vec<_>>(),
-            });
+        let bind_group_layout =
+            self.device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("Bind Group Layout"),
+                    entries: &self
+                        .buffers
+                        .iter()
+                        .map(|b| b.bind_group_layout_entry)
+                        .collect::<Vec<_>>(),
+                });
 
         // create a render pipeline layout
         let render_pipeline_layout =

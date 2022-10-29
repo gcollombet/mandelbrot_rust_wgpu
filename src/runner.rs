@@ -10,6 +10,9 @@ use winit::window::{Fullscreen, Icon, WindowBuilder};
 use crate::game::Game;
 
 pub async fn run() {
+    // print control
+    print_controls();
+    // create event loop
     env_logger::init();
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
@@ -25,4 +28,20 @@ pub async fn run() {
     // create a reference counted pointer to the window
     let mut game = Game::new(window.clone()).await;
     event_loop.run(move |event, _, control_flow| game.input(event, control_flow));
+}
+
+// a function that print the keys to control the game
+fn print_controls() {
+    println!("Controls:");
+    println!("  - Mouse wheel to zoom at center of screen");
+    println!("  - Left mouse pressed to move");
+    println!("  - Right mouse pressed to rotate");
+    println!("  - Arrow keys or ZQSD to move");
+    println!("  - A and E to rotate left and right");
+    println!("  - Numpad + and - to change the zoom speed");
+    println!("  - Space pause the animation");
+    println!("  - Entrer to reset the zoom and rotation");
+    println!("  - Page up/down to increase/decrease the color palette scale");
+    println!("  - F11 to toggle fullscreen");
+    println!("  - Escape to quit");
 }
