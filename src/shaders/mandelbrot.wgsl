@@ -120,9 +120,33 @@ fn colorize(coordinate: vec2<f32>, dc: vec2<f32>, iterations: f32, derivative: v
         var light = normalize(vec3<f32>(cos(mandelbrot.time_elapsed * 0.5), sin(mandelbrot.time_elapsed * 0.5), 1.5));
         var normal = normalize(vec3<f32>(derivative.x, derivative.y, 1.0));
         var diffuse = max(dot(normal, light), 0.0);
-        // add a little ambient light
-        diffuse = (diffuse * diffuse * diffuse) * 3.0 + 0.5;
         color = color * diffuse;
+//
+//        // add mat effect
+//        var matt = vec3<f32>(0.0, 0.0, 0.0);
+//        if(diffuse > 0.0) {
+//            matt = vec3<f32>(0.1, 0.2, 0.05);
+//        }
+//        // add ambient effect
+//        var ambient = vec3<f32>(0.1, 0.1, 0.1);
+//        // add specular effect
+//        var specular = vec3<f32>(0.5, 0.5, 0.5);
+//        var specular_power = 32.0;
+//        var specular_intensity = pow(max(dot(reflect(light, normal), normalize(vec3<f32>(-coordinate.x, -coordinate.y, 1.0))), 0.0), specular_power);
+//
+//
+//        color = vec4<f32>(color.rgb * (diffuse * (0.8) + 0.2) + specular * specular_intensity + matt, 1.0);
+
+        // add a little bit of noise to the color
+//        color = vec4<f32>(color.rgb + vec3<f32>(sin(mandelbrot.time_elapsed * 0.5) * 0.1, cos(mandelbrot.time_elapsed * 0.5) * 0.1, sin(mandelbrot.time_elapsed * 0.5) * 0.1), 1.0);
+//        // make the color more vivid and constrasted
+//        color = vec4<f32>(pow(color.rgb, vec3<f32>(1.0 / 2.2)), 1.0);
+
+
+
+        // add a little ambient light
+//        diffuse = (diffuse * diffuse * diffuse) * 3.0 + 0.5;
+//        color = color * diffuse;
     } else {
         if(iterations == -3.0) {
             color = vec4<f32>(0.0,0.0,0.0,1.0);
