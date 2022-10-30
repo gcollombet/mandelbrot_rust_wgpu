@@ -1,17 +1,36 @@
 
 # Real time Mandelbrot set explorer
 
-## What is it ?
+Yet another mandelbrot set explorer. 
 
-Yes, yet another mandelbrot set explorer. It has been done millions of times, but I wanted to do it myself...
+It has been done millions of times, but I wanted to do it myself... This version is focused on real time navigation.
 
-This version is focused on real time navigation.
+ - The navigation is done with the mouse, and the zoom is done with the mouse wheel.
 
-The acceleration given by the GPU allow to render the Mandelbrot set in real time, even at high zoom level.
+ - The acceleration given by the GPU allow to render the Mandelbrot set in real time, even at high zoom level.
 
-### Navigation
+## Use it
 
-The navigation is done with the mouse, and the zoom is done with the mouse wheel.
+### Download
+
+Download the latest release [here](https://github.com/gcollombet/mandelbrot_rust_wgpu/releases/latest).
+
+### Controls
+
+- `Mouse wheel` to zoom at center of screen
+- `Left mouse pressed` to move
+- `Right mouse pressed` to rotate
+- Arrow keys or `Z`, `Q`, `S`, `D` to move
+- `A` and `E` to rotate left and right
+- Numpad `+` and `-` to change the zoom speed
+- Numpad `/` and `*` to change the iteration count
+- `Space` pause the animation
+- `Entrer` to reset the zoom and rotation
+- `Page up/down` to increase/decrease the color palette scale
+- `F11` to toggle fullscreen
+- `Escape` to quit
+
+## General information
 
 ### Perturbation theory
 
@@ -38,30 +57,3 @@ When zooming in or moving, only the part of the image that has changed is render
 The iteration count is automatically increased when zooming in, and decreased when zooming out.
 
 The main loop is escaped when the derivative of z is close to an arbitrary epsilon threshold.
-
-## Use it
-
-### Download
-
-Download the latest release [here](https://github.com/gcollombet/mandelbrot_rust_wgpu/releases/latest).
-
-### Controls
-
-- `Mouse wheel` to zoom at center of screen
-- `Left mouse pressed` to move
-- `Right mouse pressed` to rotate
-- Arrow keys or `Z`, `Q`, `S`, `D` to move
-- `A` and `E` to rotate left and right
-- Numpad `+` and `-` to change the zoom speed
-- Numpad `/` and `*` to change the iteration count
-- `Space` pause the animation
-- `Entrer` to reset the zoom and rotation
-- `Page up/down` to increase/decrease the color palette scale
-- `F11` to toggle fullscreen
-- `Escape` to quit
-
-
-
-
-
-
