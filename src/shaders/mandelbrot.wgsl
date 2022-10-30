@@ -221,21 +221,21 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         u32((in.coord.x + 1.0) / 2.0 * f32(mandelbrot.width)),
         u32((in.coord.y + 1.0) / 2.0 * f32(mandelbrot.height))
     );
-
-    // rotate the pixel by a var name angle
-    // angle vari between 0 and 2 pi and is calculated from the mandelbrot.time_elapsed
-//    var pixel_rotated = vec2<u32>(
-//        u32(f32(pixel.x) * cos(angle) - f32(pixel.y) * sin(angle)),
-//        u32(f32(pixel.x) * sin(angle) + f32(pixel.y) * cos(angle))
-//    );
-//    pixel = pixel_rotated;
-
+    let screen_ratio = f32(mandelbrot.width) / f32(mandelbrot.height);
     var index = pixel.y * mandelbrot.width + pixel.x;
-    var dc = vec2<f32>(
-        mandelbrot.center_delta.x + (((random - 0.5) / f32(mandelbrot.width)) + (in.coord.x  * f32(mandelbrot.width) / f32(mandelbrot.height) *  cos(mandelbrot.angle) - in.coord.y * sin(mandelbrot.angle))) * mandelbrot.zoom ,
-        mandelbrot.center_delta.y + (((random - 0.5) / f32(mandelbrot.height)) + (in.coord.x  * f32(mandelbrot.width) / f32(mandelbrot.height) *  sin(mandelbrot.angle) + in.coord.y * cos(mandelbrot.angle))) * mandelbrot.zoom
+    var coord = in.coord;
+    // scale the coord with zoom
+    coord = coord * mandelbrot.zoom;
+    // rotate the coord
+    coord.x *= screen_ratio;
+    coord = vec2<f32>(
+        coord.x * cos(mandelbrot.angle) - coord.y * sin(mandelbrot.angle),
+        coord.x * sin(mandelbrot.angle) + coord.y * cos(mandelbrot.angle)
     );
-
+    var dc = vec2<f32>(
+        mandelbrot.center_delta.x + coord.x,
+        mandelbrot.center_delta.y + coord.y
+    );
     var movement = mandelbrot.center_delta - previous_mandelbrot.center_delta;
     movement.x = movement.x / (f32(mandelbrot.width) / f32(mandelbrot.height)) / mandelbrot.zoom;
     movement.y = movement.y / mandelbrot.zoom;
@@ -250,38 +250,31 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         // the norm of mandelbrot width height
         let norm_mandelbrot = sqrt(f32(mandelbrot.width) * f32(mandelbrot.width) + f32(mandelbrot.height) * f32(mandelbrot.height));
         // make the norm follow a square curve
-        let norm_square = 1u + u32(norm * norm * norm_mandelbrot / 50.0);
+        let norm_square = 1u + u32(norm * norm * norm_mandelbrot / 10.0);
         let zoom_factor = mandelbrot.zoom / previous_mandelbrot.zoom;
-        let screen_ration = f32(mandelbrot.width) / f32(mandelbrot.height);
         // calculat angle delta from previous_mandelbrot.angle and mandelbrot.angle
         // angle_delta vari between 0 and 2 pi
         let angle_delta = mandelbrot.angle - previous_mandelbrot.angle;
         // scale coord by zoom_factor
         var coord = in.coord;
         // scale coord by zoom_factor
-        coord = vec2<f32>(
-            coord.x * zoom_factor,
-            coord.y * zoom_factor
-        );
-        coord.x *= screen_ration;
+        coord *= zoom_factor;
         // rotate coord by angle_delta
+        coord.x *= screen_ratio;
         coord = vec2<f32>(
             coord.x * cos(angle_delta) - coord.y * sin(angle_delta),
             coord.x * sin(angle_delta) + coord.y * cos(angle_delta)
         );
-        coord.x /= screen_ration;
+        coord.x /= screen_ratio;
         // rotate movement by angle
-        movement.x *= screen_ration;
+        movement.x *= screen_ratio;
         movement = vec2<f32>(
             movement.x * cos(-mandelbrot.angle) - movement.y * sin(-mandelbrot.angle),
             movement.x * sin(-mandelbrot.angle) + movement.y * cos(-mandelbrot.angle)
         );
-        movement.x /= screen_ration;
+        movement.x /= screen_ratio;
         // translate coord by movement
-        coord = vec2<f32>(
-            coord.x + movement.x,
-            coord.y + movement.y
-        );
+        coord += movement;
        // calculate the new pixel
         var previous_pixel = vec2<f32>(
             (coord.x + 1.0) / 2.0 * f32(mandelbrot.width),
@@ -289,8 +282,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         );
         let previous_index = u32(previous_pixel.y) * mandelbrot.width + u32(previous_pixel.x);
         if(
-
-           (
+           mandelbrot.angle == previous_mandelbrot.angle
+           && (
                mandelbrot.zoom == previous_mandelbrot.zoom
                || (
                  !(pixel.x % norm_square == u32(random * f32(norm_square)))
