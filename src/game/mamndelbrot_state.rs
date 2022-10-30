@@ -201,6 +201,7 @@ impl GameState for MandelbrotState {
                                 VirtualKeyCode::Space => {
                                     self.zoom_speed = 0.0;
                                     self.zoom_acceleration = 0.0;
+                                    self.rotate_speed = 0.0;
                                 }
                                 // return
                                 VirtualKeyCode::Return => {

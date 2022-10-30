@@ -120,7 +120,7 @@ fn colorize(coordinate: vec2<f32>, dc: vec2<f32>, iterations: f32, derivative: v
         );
         // multiply the color by the phong shading using the derivative
         // the light is rotated around the z axis to give a nice effect
-        var light = normalize(vec3<f32>(cos(mandelbrot.time_elapsed * 0.5), sin(mandelbrot.time_elapsed * 0.5), 0.7));
+        var light = normalize(vec3<f32>(cos(mandelbrot.time_elapsed * 0.5), sin(mandelbrot.time_elapsed * 0.5), 1.5));
         var normal = normalize(vec3<f32>(derivative.x, derivative.y, 1.0));
         var diffuse = min(max(dot(normal, light), 0.2) * 2.5,1.0);
         color = vec4<f32>(color.rgb * diffuse , 1.0);
