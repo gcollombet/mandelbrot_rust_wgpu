@@ -1,13 +1,23 @@
 
-# Real time Mandelbrot set explorer
+# Realtime Mandelbrot set explorer
 
-Yet another mandelbrot set explorer. 
+Yet another mandelbrot set explorer.
+
+![Cover](/assets/illustration_2.png)
+![Cover](/assets/illustration_3.png)
+![Cover](/assets/illustration_7.png)
+![Cover](/assets/illustration.png)
+![Cover](/assets/illustration_6.png)
+![Cover](/assets/illustration_5.png)
+![Cover](/assets/illustration_4.png)
+![Cover](/assets/illustration_8.png)
+
 
 It has been done millions of times, but I wanted to do it myself... This version is focused on real time navigation.
 
- - The navigation is done with the mouse, and the zoom is done with the mouse wheel.
+The navigation is done with the mouse, and the zoom is done with the mouse wheel.
 
- - The acceleration given by the GPU allow to render the Mandelbrot set in real time, even at high zoom level.
+The acceleration given by the GPU allow to render the Mandelbrot set in real time, even at high zoom level.
 
 ## Use it
 
