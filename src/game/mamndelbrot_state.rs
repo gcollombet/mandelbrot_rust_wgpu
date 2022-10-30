@@ -38,6 +38,7 @@ pub struct MandelbrotState {
     previous_mandelbrot_data: Rc<RefCell<Vec<[f32; 2]>>>,
     zoom_speed: f32,
     zoom_acceleration: f32,
+    rotate_speed: f32,
     move_speed: (f32, f32),
     size: PhysicalSize<u32>,
     mouse_position: (isize, isize),
@@ -48,6 +49,7 @@ pub struct MandelbrotState {
 impl GameState for MandelbrotState {
     fn update(&mut self, engine: &mut Engine, delta_time: f32) {
         let epsilon = 0.001;
+        // zoom
         self.zoom_acceleration *= 0.05_f32.powf(delta_time);
         if self.zoom_acceleration.abs() < epsilon * 100.0 {
             self.zoom_acceleration = 0.0;
@@ -58,9 +60,15 @@ impl GameState for MandelbrotState {
                     * (1.0 - ((self.zoom_speed + self.zoom_acceleration) * delta_time)),
             );
         }
-        self.mandelbrot.set_maximum_iterations(
-            ((1.0 + (1.0 / self.mandelbrot.zoom()).log(2.1).clamp(0.0, 100.0)) * 200.0) as u32,
-        );
+        // rotation
+        self.rotate_speed *= 0.05_f32.powf(delta_time);
+        if self.rotate_speed.abs() < epsilon {
+            self.rotate_speed = 0.0;
+        }
+        if self.rotate_speed != 0.0 {
+            self.mandelbrot.data.deref().borrow_mut().angle += self.rotate_speed * delta_time;
+        }
+        // movement
         self.move_speed.0 *= 0.05_f32.powf(delta_time);
         self.move_speed.1 *= 0.05_f32.powf(delta_time);
         if self.move_speed.0.abs() < epsilon {
@@ -70,12 +78,20 @@ impl GameState for MandelbrotState {
         if self.move_speed.1.abs() < epsilon {
             self.move_speed.1 = 0.0;
         }
+        let move_speed = (
+            self.move_speed.0 * delta_time,
+            self.move_speed.1 * delta_time,
+        );
         // if move speed > 0 then move by move speed
         self.mandelbrot
             .data
             .deref()
             .borrow_mut()
-            .move_by(self.move_speed);
+            .move_by(move_speed);
+        // maximum iteration
+        self.mandelbrot.set_maximum_iterations(
+            ((1.0 + (1.0 / self.mandelbrot.zoom()).log(2.1).clamp(0.0, 100.0)) * 100.0) as u32,
+        );
         self.mandelbrot.update(delta_time);
         if self.mandelbrot.near_orbit_coordinate != self.previous_mandelbrot.near_orbit_coordinate {
             self.previous_mandelbrot.near_orbit_coordinate = self.mandelbrot.near_orbit_coordinate;
@@ -177,9 +193,7 @@ impl GameState for MandelbrotState {
                     // detect if keyboard is in french or english
                     if input.state == ElementState::Pressed {
                         if let Some(keycode) = input.virtual_keycode {
-                            let movement = 0.010;
-                            // if movement is < epsilon then set it to 0.0
-                            // let movement = if movement < f32::EPSILON { f32::EPSILON } else { movement };
+                            let movement = 1.0;
                             match keycode {
                                 // space
                                 VirtualKeyCode::Space => {
@@ -257,11 +271,11 @@ impl GameState for MandelbrotState {
                                 }
                                 // if e, rotate right
                                 VirtualKeyCode::E => {
-                                    self.mandelbrot.data.deref().borrow_mut().angle += 0.1;
+                                    self.rotate_speed += 1.0;
                                 }
                                 // if a, rotate left
                                 VirtualKeyCode::A => {
-                                    self.mandelbrot.data.deref().borrow_mut().angle -= 0.1;
+                                    self.rotate_speed -= 1.0;
                                 }
                                 _ => {}
                             }
@@ -410,6 +424,7 @@ impl MandelbrotState {
             mandelbrot_data,
             previous_mandelbrot_data,
             zoom_speed: 0.5,
+            rotate_speed: 0.0,
             zoom_acceleration: 0.0,
             move_speed: (0.0, 0.0),
             size,

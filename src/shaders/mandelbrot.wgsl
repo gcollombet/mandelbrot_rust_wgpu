@@ -161,8 +161,8 @@ fn colorize(coordinate: vec2<f32>, dc: vec2<f32>, iterations: f32, derivative: v
     return color;
 }
 
-fn compute_iteration(dc: vec2<f32>, index: u32) {
-    var max_iteration = f32(mandelbrot.maximum_iterations);
+fn compute_iteration(dc: vec2<f32>, index: u32, max_iteration: u32) -> f32 {
+    var max_iteration: f32 = f32(max_iteration);
     // draw a mandelbrot set
     var z = mandelbrotOrbitPointSuite[0];
     var dz = vec2<f32>(0.0, 0.0);
@@ -210,8 +210,7 @@ fn compute_iteration(dc: vec2<f32>, index: u32) {
             i += (1.0 - nu) ;
         }
     }
-    // calculate the iteration with the intensity
-    mandelbrotTexture[index] = i;
+    return i;
 }
 
 @fragment
@@ -237,14 +236,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         mandelbrot.center_delta.y + (((random - 0.5) / f32(mandelbrot.height)) + (in.coord.x  * f32(mandelbrot.width) / f32(mandelbrot.height) *  sin(mandelbrot.angle) + in.coord.y * cos(mandelbrot.angle))) * mandelbrot.zoom
     );
 
-    let movement = mandelbrot.center_delta - previous_mandelbrot.center_delta;
-    let movement_x = movement.x / (f32(mandelbrot.width) / f32(mandelbrot.height)) / mandelbrot.zoom;
-    let movement_y = movement.y / mandelbrot.zoom;
+    var movement = mandelbrot.center_delta - previous_mandelbrot.center_delta;
+    movement.x = movement.x / (f32(mandelbrot.width) / f32(mandelbrot.height)) / mandelbrot.zoom;
+    movement.y = movement.y / mandelbrot.zoom;
     if(
         mandelbrot.zoom != previous_mandelbrot.zoom
         || mandelbrot.angle != previous_mandelbrot.angle
-        || movement_x != 0.0
-        || movement_y != 0.0
+        || movement.x != 0.0
+        || movement.y != 0.0
     ) {
         // a var that contain the norm of the in.coord vector
         let norm = sqrt(in.coord.x * in.coord.x + in.coord.y * in.coord.y);
@@ -264,19 +263,25 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             coord.x * zoom_factor,
             coord.y * zoom_factor
         );
-        // translate coord by movement
-        coord = vec2<f32>(
-            coord.x + movement_x,
-            coord.y + movement_y
-        );
-        // rotate coord by angle_delta
         coord.x *= screen_ration;
+        // rotate coord by angle_delta
         coord = vec2<f32>(
             coord.x * cos(angle_delta) - coord.y * sin(angle_delta),
             coord.x * sin(angle_delta) + coord.y * cos(angle_delta)
         );
         coord.x /= screen_ration;
-
+        // rotate movement by angle
+        movement.x *= screen_ration;
+        movement = vec2<f32>(
+            movement.x * cos(-mandelbrot.angle) - movement.y * sin(-mandelbrot.angle),
+            movement.x * sin(-mandelbrot.angle) + movement.y * cos(-mandelbrot.angle)
+        );
+        movement.x /= screen_ration;
+        // translate coord by movement
+        coord = vec2<f32>(
+            coord.x + movement.x,
+            coord.y + movement.y
+        );
        // calculate the new pixel
         var previous_pixel = vec2<f32>(
             (coord.x + 1.0) / 2.0 * f32(mandelbrot.width),
@@ -284,10 +289,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         );
         let previous_index = u32(previous_pixel.y) * mandelbrot.width + u32(previous_pixel.x);
         if(
-           mandelbrot.zoom == previous_mandelbrot.zoom
-           || (
-            !(pixel.x % norm_square == u32(random * f32(norm_square)))
-            && !(pixel.y % norm_square == u32(random * f32(norm_square)))
+
+           (
+               mandelbrot.zoom == previous_mandelbrot.zoom
+               || (
+                 !(pixel.x % norm_square == u32(random * f32(norm_square)))
+                 && !(pixel.y % norm_square == u32(random * f32(norm_square)))
+               )
            )
         ) {
             if(
@@ -296,13 +304,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 && previous_pixel.x >= 0.0
                 && previous_pixel.y >= 0.0
             ) {
+//                mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
                 mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
                 mandelbrotData[index] = previousMandelbrotData[previous_index];
             } else {
-                compute_iteration(dc, index);
+                mandelbrotTexture[index] = compute_iteration(dc, index, mandelbrot.maximum_iterations);
             }
         } else {
-            compute_iteration(dc, index);
+            mandelbrotTexture[index] = compute_iteration(dc, index, mandelbrot.maximum_iterations);
         }
     }
     return colorize(in.coord, dc, mandelbrotTexture[index], mandelbrotData[index]);
