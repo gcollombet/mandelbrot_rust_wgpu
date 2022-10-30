@@ -39,6 +39,7 @@ fn print_controls() {
     println!("  - Arrow keys or ZQSD to move");
     println!("  - A and E to rotate left and right");
     println!("  - Numpad + and - to change the zoom speed");
+    println!("  - Numpad / and * to change the iteration count");
     println!("  - Space pause the animation");
     println!("  - Entrer to reset the zoom and rotation");
     println!("  - Page up/down to increase/decrease the color palette scale");

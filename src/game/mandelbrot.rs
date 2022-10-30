@@ -249,8 +249,8 @@ impl MandelbrotEngine {
         // if the center is too far away from the orbit, reset the orbit
         let delta = self.data.deref().borrow().center_delta;
         // calculate the delta length
-        let delta_length = (delta[0] * delta[0] + delta[1] * delta[1]).sqrt();
-        if delta_length > self.zoom() {
+        let delta_length = delta[0].abs() + delta[1].abs();
+        if delta_length >= self.zoom() * 2.0 {
             self.near_orbit_coordinate.0 += BigFloat::from_f32(delta[0]);
             self.near_orbit_coordinate.1 += BigFloat::from_f32(delta[1]);
             self.data.deref().borrow_mut().center_delta = [0.0, 0.0];

@@ -40,6 +40,7 @@ pub struct MandelbrotState {
     zoom_acceleration: f32,
     rotate_speed: f32,
     move_speed: (f32, f32),
+    iteration_speed: u32,
     size: PhysicalSize<u32>,
     mouse_position: (isize, isize),
     mouse_left_button_pressed: bool,
@@ -90,7 +91,8 @@ impl GameState for MandelbrotState {
             .move_by(move_speed);
         // maximum iteration
         self.mandelbrot.set_maximum_iterations(
-            ((1.0 + (1.0 / self.mandelbrot.zoom()).log(2.1).clamp(0.0, 100.0)) * 100.0) as u32,
+            ((1.0 + (1.0 / self.mandelbrot.zoom()).log(2.1).max(0.0)) * self.iteration_speed as f32)
+                as u32,
         );
         self.mandelbrot.update(delta_time);
         if self.mandelbrot.near_orbit_coordinate != self.previous_mandelbrot.near_orbit_coordinate {
@@ -255,6 +257,16 @@ impl GameState for MandelbrotState {
                                             self.zoom_speed = -0.5;
                                         }
                                     }
+                                }
+                                VirtualKeyCode::NumpadDivide => {
+                                    self.iteration_speed = (self.iteration_speed as f32 / 1.1)
+                                        .clamp(10.0, 10000.0)
+                                        as u32;
+                                }
+                                VirtualKeyCode::NumpadMultiply => {
+                                    self.iteration_speed = (self.iteration_speed as f32 * 1.1)
+                                        .clamp(10.0, 10000.0)
+                                        as u32;
                                 }
                                 // group similar keys together
                                 VirtualKeyCode::Left | VirtualKeyCode::Q => {
@@ -427,6 +439,7 @@ impl MandelbrotState {
             rotate_speed: 0.0,
             zoom_acceleration: 0.0,
             move_speed: (0.0, 0.0),
+            iteration_speed: 100,
             size,
             mouse_position: (0, 0),
             mouse_left_button_pressed: false,
