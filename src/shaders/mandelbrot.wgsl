@@ -110,53 +110,22 @@ fn colorize(coordinate: vec2<f32>, dc: vec2<f32>, iterations: f32, derivative: v
     var color = vec4<f32>(0.0,0.0,0.0,1.0);
     if(iterations >= 0.0) {
         var t = abs(1.0 - ((iterations + mandelbrot.time_elapsed * 5.0) % mandelbrot.color_palette_scale) * 2.0 / mandelbrot.color_palette_scale);
-        var dx = coordinate.x / 8.0 + cos(mandelbrot.time_elapsed / 2.0);
-        var dy = coordinate.y / 8.0 + cos(mandelbrot.time_elapsed / 2.0);
+        var dx = coordinate.x / 5.0;
+        var dy = coordinate.y / 5.0;
         color = vec4<f32>(
-            0.5 + 0.5 * cos(t * 6.28 + 1.4 + sin(dx) + sin(dy)),
+            0.5 + 0.5 * cos(t *  6.28 + 1.4 + sin(dx) - 0.5),
             0.5 + 0.5 * sin(t * 5.88 - 3.14 + sin(dy - dx)),
-            0.5 + 0.5 * cos(t * 3.14 - 3.14 + cos(dx * 3.14) + 1.5 ),
+            0.5 + 0.5 * cos(t * 3.14 - 3.14 + cos(dx * 3.14) - 0.5),
             1.0
         );
-        // make color more saturated
-//        color = color * 1.5;
         // multiply the color by the phong shading using the derivative
         // the light is rotated around the z axis to give a nice effect
         var light = normalize(vec3<f32>(cos(mandelbrot.time_elapsed * 0.5), sin(mandelbrot.time_elapsed * 0.5), 0.7));
         var normal = normalize(vec3<f32>(derivative.x, derivative.y, 1.0));
-        var diffuse = max(dot(normal, light), 0.3);
-//        color = color * diffuse;
-//
-        // add mat effect
-        var matt = vec3<f32>(0.0, 0.0, 0.0);
-        if(diffuse > 0.0) {
-            matt = vec3<f32>(0.1, 0.2, 0.05);
-        }
-//        // add ambient effect
-//        var ambient = vec3<f32>(0.1, 0.1, 0.1);
-        // add specular effect
-        var specular = vec3<f32>(0.5, 0.5, 0.5);
-        var specular_power = 3.0;
-        var specular_intensity = pow(max(dot(reflect(light, normal), normalize(vec3<f32>(cos(mandelbrot.time_elapsed * 0.5), sin(mandelbrot.time_elapsed * 0.5), 0.7))), 0.0), specular_power);
-
-//
-        color = vec4<f32>(color.rgb * (diffuse * (0.8) + 0.2) , 1.0);
-
-        // add a little bit of noise to the color
-//        color = vec4<f32>(color.rgb + vec3<f32>(sin(mandelbrot.time_elapsed * 0.5) * 0.1, cos(mandelbrot.time_elapsed * 0.5) * 0.1, sin(mandelbrot.time_elapsed * 0.5) * 0.1), 1.0);
-//        // make the color more vivid and constrasted
-//        color = vec4<f32>(pow(color.rgb, vec3<f32>(1.0 / 2.2)), 1.0);
-
-
-
-        // add a little ambient light
-//        diffuse = (diffuse * diffuse * diffuse) * 3.0 + 0.5;
-//        color = color * diffuse;
+        var diffuse = min(max(dot(normal, light), 0.2) * 2.5,1.0);
+        color = vec4<f32>(color.rgb * diffuse , 1.0);
     } else {
-        if(iterations == -3.0) {
-            color = vec4<f32>(0.0,0.0,0.0,1.0);
-        }
-//        color = vec4<f32>(abs(iterations / 1000.0),0.0,0.0,1.0);
+        color = vec4<f32>(0.0,0.0,0.0,1.0);
     }
     return color;
 }
@@ -172,8 +141,7 @@ fn compute_iteration(dc: vec2<f32>, index: u32, max_iteration: u32) -> f32 {
     var ref_i = 0;
     var max = mandelbrot.mu;
     // create an epsilon var that is smaller when the zoom is bigger
-//    var epsilon = mandelbrot.epsilon  ;
-    var epsilon = mandelbrot.epsilon / pow(1.5, log2(1.0 / mandelbrot.zoom)) ;
+    var epsilon = mandelbrot.epsilon;
     // calculate the iteration
     while (i < max_iteration) {
         z = mandelbrotOrbitPointSuite[ref_i];
@@ -191,7 +159,6 @@ fn compute_iteration(dc: vec2<f32>, index: u32, max_iteration: u32) -> f32 {
             i = -3.0;
             break;
         }
-
         der = cmul(der * 2.0, z);
         let dot_dz = dot(dz, dz);
         if (dot_z < dot_dz || f32(ref_i) == max_iteration) {
@@ -250,7 +217,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         // the norm of mandelbrot width height
         let norm_mandelbrot = sqrt(f32(mandelbrot.width) * f32(mandelbrot.width) + f32(mandelbrot.height) * f32(mandelbrot.height));
         // make the norm follow a square curve
-        let norm_square = 1u + u32(norm * norm * norm_mandelbrot / 10.0);
+        let norm_square = 1u + u32(norm * norm * norm_mandelbrot / 50.0);
         let zoom_factor = mandelbrot.zoom / previous_mandelbrot.zoom;
         // calculat angle delta from previous_mandelbrot.angle and mandelbrot.angle
         // angle_delta vari between 0 and 2 pi
