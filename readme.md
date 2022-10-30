@@ -1,9 +1,15 @@
 
 # Real time Mandelbrot set explorer
 
-It has been done millions of times, but I wanted to do it myself. This version is focused on real time navigation.
+## What is it ?
+
+Yes, yet another mandelbrot set explorer. It has been done millions of times, but I wanted to do it myself...
+
+This version is focused on real time navigation.
 
 The acceleration given by the GPU allow to render the Mandelbrot set in real time, even at high zoom level.
+
+### Navigation
 
 The navigation is done with the mouse, and the zoom is done with the mouse wheel.
 
@@ -25,7 +31,21 @@ It is particularly important when the calculation is done by GPU because they do
 
 With perturbation, the zoom limit is around 10^-40, so very close to the smallest positive number of single precision floating point limit at 10^-45.
 
-## Controls
+### Optimizations
+
+When zooming in or moving, only the part of the image that has changed is rendered.
+
+The iteration count is automatically increased when zooming in, and decreased when zooming out.
+
+The main loop is escaped when the derivative of z is close to an arbitrary epsilon threshold.
+
+## Use it
+
+### Download
+
+Download the latest release [here](https://github.com/gcollombet/mandelbrot_rust_wgpu/releases/latest).
+
+### Controls
 
 - `Mouse wheel` to zoom at center of screen
 - `Left mouse pressed` to move
@@ -39,11 +59,6 @@ With perturbation, the zoom limit is around 10^-40, so very close to the smalles
 - `Page up/down` to increase/decrease the color palette scale
 - `F11` to toggle fullscreen
 - `Escape` to quit
-
-## Download
-
-Download the latest release [here](https://github.com/gcollombet/mandelbrot_rust_wgpu/releases/latest).
-
 
 
 
