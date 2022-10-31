@@ -2,6 +2,10 @@
 name = "mandelbrot"
 version = "0.1.0"
 edition = "2021"
+authors = ["Guillaume Colllombet <guillaume.collmombet@gmail.com>"]
+license = "GNU General Public License v3.0"
+description = "Realtime Mandelbrot set explorer"
+repository = "https://github.com/gcollombet/mandelbrot_rust_wgpu"
 
 [profile.release]
 opt-level = 3
