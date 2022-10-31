@@ -48,17 +48,18 @@ This mandelbrot explorer uses perturbation theory to render the Mandelbrot set a
 
 I do understand, vaguely, the concept [thanks to this guy](https://www.youtube.com/playlist?list=PL43B1963F261E6E47).
 
-But obviously, I'm unable to use it, and I was unaware of it before I read a post made by smarter guys than me on Fractal Forum.
+But obviously, I'm unable to use it, and I was unaware of it before 
+I read [a post made by smarter guys than me on Fractal Forum](https://fractalforums.org/fractal-mathematics-and-new-theories/28/another-solution-to-perturbation-glitches/4360).
 
 There, they discuss the fact that one could use perturbation theory and apply it to mandelbrot set formula 
-to mitigate precisions issues when zooming in. They also provide the associated formula and even a pseudocode implementation.
+to mitigate precision issues when zooming in. They also provide the associated formula and even a pseudocode implementation.
 
-The core idea that this technic is that it allow to make calculus with numbers really close to zero, 
-where the precision of floating point is the greatest. 
+The core idea of this technic is that it allow to make calculus with numbers really close to zero, 
+[where the precision of floating point is the greatest](https://randomascii.wordpress.com/2012/01/11/tricks-with-the-floating-point-format/). 
 
 It is particularly important when the calculation is done by GPU because they do work with 32 bits floating point numbers.
 
-With perturbation, the zoom limit is around 10^-40, so very close to the smallest positive number of single precision floating point limit at 10^-45.
+With perturbation, the zoom limit is around 10^-40, which is very close to the smallest positive number of single precision floating point limit at 10^-45.
 
 ### Optimizations
 
@@ -66,4 +67,4 @@ When zooming in or moving, only the part of the image that has changed is render
 
 The iteration count is automatically increased when zooming in, and decreased when zooming out.
 
-The main loop is escaped when the derivative of z is close to an arbitrary epsilon threshold.
+The mandelbrot iteration calculus loop is escaped when the derivative of z is close to an arbitrary epsilon threshold.
