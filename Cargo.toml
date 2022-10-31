@@ -3,9 +3,12 @@ name = "mandelbrot"
 version = "0.1.0"
 edition = "2021"
 authors = ["Guillaume Colllombet <guillaume.collmombet@gmail.com>"]
-license = "GNU General Public License v3.0"
+license = "GPL-3.0"
 description = "Realtime Mandelbrot set explorer"
 repository = "https://github.com/gcollombet/mandelbrot_rust_wgpu"
+keywords = ["mandelbrot", "wgpu", "rust", "gpu", "fractals", "perturbation-theory"]
+readme = "readme.md"
+categories = ["gui", "graphics"]
 
 [profile.release]
 opt-level = 3
@@ -23,3 +26,6 @@ wgpu = "0.13.1"
 winit = "0.27.3"
 to_buffer_representation_derive = { path = "./to_buffer_representation_derive" }
 rand = "0.8.5"
+
+[build-dependencies]
+winres = "0.1"

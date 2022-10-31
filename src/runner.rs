@@ -16,7 +16,7 @@ pub async fn run() {
     env_logger::init();
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
-    window.set_title("Mandelbrot");
+    window.set_title("Realtime Mandelbrot Explorer");
     window.set_inner_size(winit::dpi::LogicalSize::new(800.0, 800.0));
     // decode a png file into a vector of u8
     let icon = image::load_from_memory(include_bytes!("../assets/logo.png"))
