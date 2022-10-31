@@ -15,9 +15,9 @@ Yet another mandelbrot set explorer.
 
 It has been done millions of times, but I wanted to do it myself... This version is focused on real time navigation.
 
-The navigation is done with the mouse, and the zoom is done with the mouse wheel.
+The navigation is made with the mouse, and the zoom is made with the mouse wheel.
 
-The acceleration given by the GPU allow to render the Mandelbrot set in real time, even at high zoom level.
+The acceleration given by the GPU allows to render the Mandelbrot set in real time, even at high zoom level.
 
 ## Use it
 
@@ -55,7 +55,7 @@ There, they discuss the fact that one could use perturbation theory and apply it
 to mitigate precision issues when zooming in. They also provide the associated formula and even a pseudocode implementation.
 
 The core idea of this technic is that it allow to make calculus with numbers really close to zero, 
-[where the precision of floating point is the greatest](https://randomascii.wordpress.com/2012/01/11/tricks-with-the-floating-point-format/). 
+[where the floating point precision is greatest](https://randomascii.wordpress.com/2012/01/11/tricks-with-the-floating-point-format/). 
 
 It is particularly important when the calculation is done by GPU because they do work with 32 bits floating point numbers.
 

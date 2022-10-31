@@ -164,6 +164,12 @@ fn compute_iteration(dc: vec2<f32>, index: u32, max_iteration: u32) -> f32 {
         if (dot_z < dot_dz || f32(ref_i) == max_iteration) {
             dz = z;
             ref_i = 0;
+        } else {
+//   /* bivariate linear approximation */
+//    T := lookup table [ exponent(|z|^2) ]
+//    z := T.U * z + T.V * c + T.W
+//    iterations += T.iterations
+//    reference iterations += T.iterations
         }
         i += 1.0;
     }
