@@ -267,10 +267,20 @@ impl MandelbrotEngine {
         let mu = self.data.borrow().mu.into();
         let c = self.near_orbit_coordinate;
         let mut z: (BigFloat, BigFloat) = self.last_orbit_z;
+        let mut derivative: (BigFloat, BigFloat) = (0.0.into(), 0.0.into());
         let mut i = self.last_orbit_iteration as usize;
         let mut count = 0;
         while i < self.data.borrow().maximum_iterations as usize && (!partial || count < 50) {
             self.orbit_point_suite.deref().borrow_mut()[i as usize] = [z.0.to_f32(), z.1.to_f32()];
+            // derivative = derivative * 2 * z;
+            derivative = (
+                derivative.0 * two,
+                derivative.1 * two,
+            );
+            derivative = (
+                derivative.0 + z.0 - derivative.1 * z.1,
+                derivative.0 + z.1 + derivative.1 * z.0,
+            );
             // z = z * z + c;
             z = (z.0 * z.0 - z.1 * z.1 + c.0, z.0 * z.1 * two + c.1);
             self.last_orbit_z = z;

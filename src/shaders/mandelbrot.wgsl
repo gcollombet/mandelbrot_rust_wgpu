@@ -19,6 +19,10 @@
 // TODO https://fractalforums.org/fractal-mathematics-and-new-theories/28/another-solution-to-perturbation-glitches/4360/90
 // TODO https://code.mathr.co.uk/mandelbrot-numerics/blob/HEAD:/c/bin/m-describe.c
 // https://randomascii.wordpress.com/2012/01/11/tricks-with-the-floating-point-format/ About Floating point
+// https://fractalforums.org/fractal-mathematics-and-new-theories/28/criteria-for-sa-stop/4628/msg32837#msg32837
+// http://www.science.eclipse.co.uk/sft_maths.pdf
+// https://mathr.co.uk/mandelbrot/book-draft/
+// https://mathr.co.uk/blog/2010-08-31_optimizing_zoom_animations.html
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) coordinate: vec2<f32>,
@@ -223,7 +227,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         // the norm of mandelbrot width height
         let norm_mandelbrot = sqrt(f32(mandelbrot.width) * f32(mandelbrot.width) + f32(mandelbrot.height) * f32(mandelbrot.height));
         // make the norm follow a square curve
-        let norm_square = 1u + u32(norm * norm * norm_mandelbrot / 50.0);
+        let norm_square = 1u + u32(norm * norm * norm_mandelbrot / 100.0);
         let zoom_factor = mandelbrot.zoom / previous_mandelbrot.zoom;
         // calculat angle delta from previous_mandelbrot.angle and mandelbrot.angle
         // angle_delta vari between 0 and 2 pi
