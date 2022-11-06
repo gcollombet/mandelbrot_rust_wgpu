@@ -11,13 +11,14 @@ use winit::window::{Window, WindowBuilder};
 
 use engine::Engine;
 use game_state::GameState;
-use mamndelbrot_state::MandelbrotState;
+use mandelbrot_state::MandelbrotState;
 use mandelbrot::MandelbrotEngine;
 use window_state::WindowState;
 
 mod engine;
 mod game_state;
-mod mamndelbrot_state;
+mod mandelbrot_state;
+mod mandelbrot_dot;
 mod mandelbrot;
 mod to_buffer_representation;
 mod window_state;
@@ -28,9 +29,8 @@ enum GameBuffer {
     PreviousMandelbrot = 1,
     MandelbrotIterationTexture = 2,
     PreviousMandelbrotIterationTexture = 3,
-    MandelbrotData = 4,
-    PreviousMandelbrotData = 5,
-    MandelbrotOrbitPointSuite = 6,
+    MandelbrotOrbitPointSuite = 4,
+    LastRenderedMandelbrot = 5,
 }
 
 pub struct Game {

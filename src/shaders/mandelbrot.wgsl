@@ -23,6 +23,12 @@
 // http://www.science.eclipse.co.uk/sft_maths.pdf
 // https://mathr.co.uk/mandelbrot/book-draft/
 // https://mathr.co.uk/blog/2010-08-31_optimizing_zoom_animations.html
+// https://code.mathr.co.uk/fractal-bits/blob/refs/heads/main:/mandelbla/mandelbla.c
+// https://eng.libretexts.org/Bookshelves/Mechanical_Engineering/Math_Numerics_and_Programming_(for_Mechanical_Engineers)/01%3A_Unit_I_-_(Numerical)_Calculus._Elementary_Programming_Concepts/02%3A_Interpolation/2.02%3A_Interpolation_of_Bivariate_Functions
+// https://nxs.re/2015/12/12/mu.html
+// https://mathr.co.uk/blog/2014-11-22_adaptive_supersampling_using_distance_estimate.html
+// https://github.com/munrocket/deep-mandelbrot
+// https://www.math.univ-toulouse.fr/~cheritat/wiki-draw/index.php/Mandelbrot_set
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) coordinate: vec2<f32>,
@@ -57,10 +63,19 @@ struct Mandelbrot {
 };
 
 struct LastRenderedMandelbrot {
-    center_delta: vec2<f32>,
-    zoom: f32,
+    last_iteration: i32,
 }
 
+struct MandelbrotDot {
+    // the value of z
+    z: vec2<f32>,
+    // the value of the derivative of z
+    derivative: vec2<f32>,
+    // the last computed iteration
+    iteration: i32,
+    // the index of reference iteration
+    reference_iteration: i32,
+};
 
 @group(0) @binding(0)
 var<uniform> mandelbrot: Mandelbrot;
@@ -69,19 +84,15 @@ var<uniform> previous_mandelbrot: Mandelbrot;
 
 // add the storage buffer
 @group(0) @binding(2)
-var<storage, read_write> mandelbrotTexture: array<f32>;
+var<storage, read_write> mandelbrot_texture: array<MandelbrotDot>;
 @group(0) @binding(3)
-var<storage, read_write> previousMandelbrotTexture: array<f32>;
-@group(0) @binding(4)
-var<storage, read_write> mandelbrotData: array<vec2<f32>>;
-@group(0) @binding(5)
-var<storage, read_write> previousMandelbrotData: array<vec2<f32>>;
+var<storage, read_write> previous_mandelbrot_texture: array<MandelbrotDot>;
 
 // add the storage buffer
-@group(0) @binding(6)
-var<storage, read_write> mandelbrotOrbitPointSuite: array<vec2<f32>>;
-@group(0) @binding(7)
-var<storage, read_write> lastRenderedMandelbrot: LastRenderedMandelbrot;
+@group(0) @binding(4)
+var<storage, read_write> mandelbrot_reference: array<MandelbrotDot>;
+@group(0) @binding(5)
+var<storage, read_write> last_rendered_mandelbrot: LastRenderedMandelbrot;
 
 @vertex
 fn vs_main(
@@ -106,14 +117,38 @@ fn cmul(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
 // cdiv is a complex division
 fn cdiv(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
     var denominator: f32 = b.x * b.x + b.y * b.y;
-    return vec2<f32>((a.x * b.x + a.y * b.y) / denominator, (a.y * b.x - a.x * b.y) / denominator);
+    if(denominator == 0.0) {
+        return vec2<f32>(0.0, 0.0);
+    } else {
+        return vec2<f32>((a.x * b.x + a.y * b.y) / denominator, (a.y * b.x - a.x * b.y) / denominator);
+    }
+}
+
+// a function that return distance estimation from z and derivative
+fn distance_estimation(z: vec2<f32>, der: vec2<f32>) -> f32 {
+    let dist_t = cdiv(2.0 * z * log(dot(z,z)), der);
+    let dist = dot(dist_t, dist_t);
+    return dist;
+}
+
+fn normal(z: vec2<f32>, derivative: vec2<f32>) -> vec3<f32> {
+    let derivative = cdiv(derivative,z);
+    return normalize(vec3<f32>(derivative.x, derivative.y, 1.0));
+}
+
+fn smooth_iteration(z: vec2<f32>, iteration: i32) -> f32 {
+    let dot_z = dot(z,z);
+    return abs(f32(iteration) + 1.0 - log2(log(dot_z)));
 }
 
 // create a function that colorize a pixel based on the number of iterations has seen below
-fn colorize(coordinate: vec2<f32>, dc: vec2<f32>, iterations: f32, derivative: vec2<f32>) -> vec4<f32> {
+fn colorize(coordinate: vec2<f32>, dc: vec2<f32>, data: MandelbrotDot) -> vec4<f32> {
+    let derivative = data.derivative;
+    let z = data.z;
     var color = vec4<f32>(0.0,0.0,0.0,1.0);
-    if(iterations >= 0.0) {
-        var t = abs(1.0 - ((iterations + mandelbrot.time_elapsed * 5.0) % mandelbrot.color_palette_scale) * 2.0 / mandelbrot.color_palette_scale);
+    if(data.iteration >= 0) {
+        let iteration = smooth_iteration(data.z, data.iteration);
+        var t = abs(1.0 - (iteration % mandelbrot.color_palette_scale) * 2.0 / mandelbrot.color_palette_scale);
         var dx = coordinate.x / 5.0;
         var dy = coordinate.y / 5.0;
         color = vec4<f32>(
@@ -124,70 +159,91 @@ fn colorize(coordinate: vec2<f32>, dc: vec2<f32>, iterations: f32, derivative: v
         );
         // multiply the color by the phong shading using the derivative
         // the light is rotated around the z axis to give a nice effect
-        var light = normalize(vec3<f32>(cos(mandelbrot.time_elapsed * 0.5), sin(mandelbrot.time_elapsed * 0.5), 1.5));
-        var normal = normalize(vec3<f32>(derivative.x, derivative.y, 1.0));
-        var diffuse = min(max(dot(normal, light), 0.2) * 2.5,1.0);
-        color = vec4<f32>(color.rgb * diffuse , 1.0);
+        let distance = 0.0; //distance_estimation(z, derivative) ;
+//        let periodic_distance = abs(1.0 - log(1.0 / distance) % 10.0 / 5.0);
+        var normal = normal(z, derivative);
+        var light = normalize(vec3<f32>(cos(mandelbrot.time_elapsed * 0.5), sin(mandelbrot.time_elapsed * 0.5), 0.1));
+        var diffuse = min(max(0.2, dot(normal, light)) * 2.5,1.0);
+        color = vec4<f32>(color.rgb * diffuse + distance, 1.0);
     } else {
         color = vec4<f32>(0.0,0.0,0.0,1.0);
     }
     return color;
 }
 
-fn compute_iteration(dc: vec2<f32>, index: u32, max_iteration: u32) -> f32 {
-    var max_iteration: f32 = f32(max_iteration);
+// a function that interpolate bivariate function
+fn interpolate(a: vec2<f32>, b: vec2<f32>, c: vec2<f32>, d: vec2<f32>, x: f32, y: f32) -> vec2<f32> {
+    var ab = mix(a, b, x);
+    var cd = mix(c, d, x);
+    return mix(ab, cd, y);
+}
+
+fn compute_iteration(dc: vec2<f32>, index: u32, redraw: bool) -> MandelbrotDot {
     // draw a mandelbrot set
-    var z = mandelbrotOrbitPointSuite[0];
-    var dz = vec2<f32>(0.0, 0.0);
-    var der = vec2<f32>(1.0, 0.0);
+    var iteration = 0 ;
+    var reference_iteration = 0;
+    var z = vec2<f32>(0.0, 0.0);
+    var derivative = vec2<f32>(1.0, 0.0);
+    if(redraw == false) {
+        iteration = previous_mandelbrot_texture[index].iteration;
+        reference_iteration =  previous_mandelbrot_texture[index].reference_iteration;
+        z = previous_mandelbrot_texture[index].z;
+        derivative = previous_mandelbrot_texture[index].derivative;
+    }
+    var Z = mandelbrot_reference[reference_iteration].z;
+    var dz = z - Z;
+    var last_iteration = iteration;
     var distance = 0.0;
-    var i = 0.0;
-    var ref_i = 0;
-    var max = mandelbrot.mu;
     // create an epsilon var that is smaller when the zoom is bigger
     var epsilon = mandelbrot.epsilon;
+    if(
+        redraw == false
+        && (
+            iteration < 0
+            || (dot(z, z) >= mandelbrot.mu)
+            || (dot(derivative, derivative) < epsilon)
+        )
+    ) {
+        return MandelbrotDot(z, derivative, iteration, reference_iteration);
+    }
     // calculate the iteration
-    while (i < max_iteration) {
-        z = mandelbrotOrbitPointSuite[ref_i];
-        dz = 2.0 * cmul(dz, z) + cmul(dz, dz) + dc;
-        ref_i += 1;
-        // if squared module of dz
-        z = mandelbrotOrbitPointSuite[ref_i] + dz;
-        mandelbrotData[index] = cdiv(der,z);
+    while (iteration < i32(mandelbrot.maximum_iterations) && (iteration - last_iteration < 100)) {
+        derivative = 2.0 * cmul(z, derivative) + vec2<f32>(1.0, 0.0 );
+        Z = mandelbrot_reference[reference_iteration].z;
+        dz = 2.0 * cmul(Z, dz) + cmul(dz, dz) + dc;
+        reference_iteration += 1;
+        Z = mandelbrot_reference[reference_iteration].z;
+        z = Z + dz;
         let dot_z = dot(z, z);
          // if is bigger than a max value, then we are out of the mandelbrot set
-        if (dot_z >= max) {
+        if (dot_z >= mandelbrot.mu) {
             break;
         }
-        if (dot(der, der) < epsilon) {
-            i = -3.0;
+        // if the distance is smaller than epsilon, then we are in the mandelbrot set
+        if (dot(derivative, derivative) < epsilon) {
+            iteration = -1;
             break;
         }
-        der = cmul(der * 2.0, z);
         let dot_dz = dot(dz, dz);
-        if (dot_z < dot_dz || f32(ref_i) == max_iteration) {
+        if (dot_z < dot_dz || reference_iteration == i32(mandelbrot.maximum_iterations)) {
             dz = z;
-            ref_i = 0;
+            reference_iteration = 0;
         } else {
-//   /* bivariate linear approximation */
-//    T := lookup table [ exponent(|z|^2) ]
-//    z := T.U * z + T.V * c + T.W
-//    iterations += T.iterations
-//    reference iterations += T.iterations
+            // use  bivariate linear approximation
+            // https://en.wikipedia.org/wiki/Bivariate_linear_interpolation
+            // to calculate the next iteration
+            //   /* bivariate linear approximation */
+            //    T := lookup table [ exponent(|z|^2) ]
+            //    z := T.U * z + T.V * c + T.W
+            //    iterations += T.iterations
+            //    reference iterations += T.iterations
         }
-        i += 1.0;
+        iteration += 1;
     }
-    if(i >= max_iteration ) {
-        i = -1.0;
-    } else {
-        if( i > 0.0) {
-            // add the rest to i to get a smooth color gradient
-            let log_zn = log(dz.x * dz.x + dz.y * dz.y) / 2.0;
-            var nu = log(log_zn / log(2.0)) / log(2.0);
-            i += (1.0 - nu) ;
-        }
+    if(iteration >= i32(mandelbrot.maximum_iterations) ) {
+        iteration = -1;
     }
-    return i;
+    return MandelbrotDot(z, derivative, iteration, reference_iteration);
 }
 
 @fragment
@@ -202,7 +258,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var index = pixel.y * mandelbrot.width + pixel.x;
     var coord = in.coord;
     // scale the coord with zoom
-    coord = coord * mandelbrot.zoom;
+    coord = coord * (mandelbrot.zoom);
     // rotate the coord
     coord.x *= screen_ratio;
     coord = vec2<f32>(
@@ -274,15 +330,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 && previous_pixel.x >= 0.0
                 && previous_pixel.y >= 0.0
             ) {
-//                mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
-                mandelbrotTexture[index] = previousMandelbrotTexture[previous_index];
-                mandelbrotData[index] = previousMandelbrotData[previous_index];
+//                mandelbrot_texture[index] = previous_mandelbrot_texture[previous_index];
+                mandelbrot_texture[index] = compute_iteration(dc, previous_index, false);
             } else {
-                mandelbrotTexture[index] = compute_iteration(dc, index, mandelbrot.maximum_iterations);
+                mandelbrot_texture[index] = compute_iteration(dc, index, true);
             }
         } else {
-            mandelbrotTexture[index] = compute_iteration(dc, index, mandelbrot.maximum_iterations);
+            mandelbrot_texture[index] = compute_iteration(dc, index, true);
         }
+    } else {
+        mandelbrot_texture[index] = compute_iteration(dc, index, false);
     }
-    return colorize(in.coord, dc, mandelbrotTexture[index], mandelbrotData[index]);
+    return colorize(in.coord, dc, mandelbrot_texture[index]);
 }

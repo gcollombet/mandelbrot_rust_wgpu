@@ -158,13 +158,13 @@ impl Engine {
             0,
             self.buffers[3].length() as BufferAddress,
         );
-        encoder.copy_buffer_to_buffer(
-            &self.buffers[4].buffer,
-            0,
-            &self.buffers[5].buffer,
-            0,
-            self.buffers[5].length() as BufferAddress,
-        );
+        // encoder.copy_buffer_to_buffer(
+        //     &self.buffers[4].buffer,
+        //     0,
+        //     &self.buffers[5].buffer,
+        //     0,
+        //     self.buffers[5].length() as BufferAddress,
+        // );
         // submit will accept anything that implements IntoIter
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();

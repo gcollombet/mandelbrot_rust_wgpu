@@ -9,6 +9,7 @@ use bytemuck::{Pod, Zeroable};
 use num_bigfloat::BigFloat;
 
 use to_buffer_representation_derive::ToBufferRepresentation;
+use crate::game::mandelbrot_dot::MandelbrotDot;
 
 use crate::game::to_buffer_representation::ToBufferRepresentation;
 
@@ -162,10 +163,10 @@ impl MandelbrotData {
 }
 
 pub struct MandelbrotEngine {
-    pub near_orbit_coordinate: (BigFloat, BigFloat),
+    pub reference_coordinate: (BigFloat, BigFloat),
     pub last_orbit_z: (BigFloat, BigFloat),
     pub last_orbit_iteration: u32,
-    pub orbit_point_suite: Rc<RefCell<Vec<[f32; 2]>>>,
+    pub reference: Rc<RefCell<Vec<MandelbrotDot>>>,
     pub data: Rc<RefCell<MandelbrotData>>,
 }
 
@@ -192,15 +193,15 @@ pub struct MandelbrotEngine {
 // x: -5.572506229492064091994520833394481793049e-1, y: 6.355989165839159099969652617613951003226e-1, zoom: 0.0000000000000000000000000000000000015172783
 impl Default for MandelbrotEngine {
     fn default() -> Self {
-        let mut orbit_point_suite = Vec::new();
-        orbit_point_suite.resize_with(1000000, || [0.0, 0.0]);
+        let mut reference = Vec::new();
+        reference.resize_with(1000000, || MandelbrotDot::new());
         Self {
-            near_orbit_coordinate: (
-                BigFloat::parse("-1.749922480927599928271333687542289453030433024473703345006508521395924860650654081299355473751219976598678491114359225427863893386542382475600444642781285056640754").unwrap(),
-                BigFloat::parse("-0.000000000000959502198314327569948975707202650233401883670299418141500240641361234506320676962536124684582340235944852850785763764700482870569928474715774446003497").unwrap(),
+            reference_coordinate: (
+BigFloat::parse("-8.005649172439378601652614980060010776762e-1").unwrap(),
+BigFloat::parse("1.766690913194066364854892309438271746385e-1").unwrap(),
             ),
             last_orbit_z: (0.0.into(), 0.0.into()),
-            orbit_point_suite: Rc::new(RefCell::new(orbit_point_suite)),
+            reference: Rc::new(RefCell::new(reference)),
             last_orbit_iteration: 0,
             data: Rc::new(RefCell::new(MandelbrotData {
                 generation: 0,
@@ -211,7 +212,7 @@ impl Default for MandelbrotEngine {
                 maximum_iterations: 100,
                 width: 0,
                 height: 0,
-                mu: 10000.0,
+                mu: 100.0,
                 color_palette_scale: 100.0,
                 angle: 0.0,
             })),
@@ -251,8 +252,8 @@ impl MandelbrotEngine {
         // calculate the delta length
         let delta_length = delta[0].abs() + delta[1].abs();
         if delta_length >= self.zoom() * 2.0 {
-            self.near_orbit_coordinate.0 += BigFloat::from_f32(delta[0]);
-            self.near_orbit_coordinate.1 += BigFloat::from_f32(delta[1]);
+            self.reference_coordinate.0 += BigFloat::from_f32(delta[0]);
+            self.reference_coordinate.1 += BigFloat::from_f32(delta[1]);
             self.data.deref().borrow_mut().center_delta = [0.0, 0.0];
             self.last_orbit_iteration = 0;
             self.last_orbit_z = (0.0.into(), 0.0.into());
@@ -265,14 +266,14 @@ impl MandelbrotEngine {
     fn calculate_orbit_point_suite(&mut self, partial: bool) {
         let two = BigFloat::parse("2.0").unwrap();
         let mu = self.data.borrow().mu.into();
-        let c = self.near_orbit_coordinate;
+        let c = self.reference_coordinate;
         let mut z: (BigFloat, BigFloat) = self.last_orbit_z;
         let mut derivative: (BigFloat, BigFloat) = (0.0.into(), 0.0.into());
         let mut i = self.last_orbit_iteration as usize;
         let mut count = 0;
         while i < self.data.borrow().maximum_iterations as usize && (!partial || count < 50) {
-            self.orbit_point_suite.deref().borrow_mut()[i as usize] = [z.0.to_f32(), z.1.to_f32()];
-            // derivative = derivative * 2 * z;
+            self.reference.deref().borrow_mut()[i as usize].z = [z.0.to_f32(), z.1.to_f32()];
+            // derivative = derivative * 2.0 * z;
             derivative = (
                 derivative.0 * two,
                 derivative.1 * two,
@@ -281,6 +282,11 @@ impl MandelbrotEngine {
                 derivative.0 + z.0 - derivative.1 * z.1,
                 derivative.0 + z.1 + derivative.1 * z.0,
             );
+            self.reference.deref().borrow_mut()[i as usize].derivative = [
+                derivative.0.to_f32(),
+                derivative.1.to_f32()
+            ];
+            self.reference.deref().borrow_mut()[i as usize].iterations = i as i32;
             // z = z * z + c;
             z = (z.0 * z.0 - z.1 * z.1 + c.0, z.0 * z.1 * two + c.1);
             self.last_orbit_z = z;
@@ -318,9 +324,9 @@ impl MandelbrotEngine {
                 * BigFloat::from_f64(self.data.borrow().zoom as f64),
             normalized_mouse_vector.1 * BigFloat::from_f64(self.data.borrow().zoom as f64),
         );
-        self.near_orbit_coordinate.0 +=
+        self.reference_coordinate.0 +=
             delta.0 + BigFloat::from_f64(self.data.borrow().center_delta[0] as f64);
-        self.near_orbit_coordinate.1 +=
+        self.reference_coordinate.1 +=
             delta.1 + BigFloat::from_f64(self.data.borrow().center_delta[1] as f64);
         self.data.deref().borrow_mut().center_delta[0] = -delta.0.to_f32();
         self.data.deref().borrow_mut().center_delta[1] = -delta.1.to_f32();
