@@ -9,6 +9,8 @@ use crate::game::to_buffer_representation::ToBufferRepresentation;
 pub struct MandelbrotDot {
     // the value of z
     pub z: [f32; 2],
+    // the delta betweeen z and the reference Z
+    pub dz: [f32; 2],
     // the value of the derivative of z
     pub derivative: [f32; 2],
     // the number of iterations to reach the maximum value
@@ -21,6 +23,7 @@ impl Default for MandelbrotDot {
     fn default() -> Self {
         Self {
             z: [0.0, 0.0],
+            dz: [0.0, 0.0],
             derivative: [1.0, 0.0],
             iterations: 0,
             reference_iteration: 0,

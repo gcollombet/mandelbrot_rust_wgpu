@@ -69,6 +69,8 @@ struct LastRenderedMandelbrot {
 struct MandelbrotDot {
     // the value of z
     z: vec2<f32>,
+    // the delta betweeen z and the reference Z
+    dz: vec2<f32>,
     // the value of the derivative of z
     derivative: vec2<f32>,
     // the last computed iteration
@@ -164,7 +166,11 @@ fn colorize(coordinate: vec2<f32>, dc: vec2<f32>, data: MandelbrotDot) -> vec4<f
         var normal = normal(z, derivative);
         var light = normalize(vec3<f32>(cos(mandelbrot.time_elapsed * 0.5), sin(mandelbrot.time_elapsed * 0.5), 0.1));
         var diffuse = min(max(0.2, dot(normal, light)) * 2.5,1.0);
-        color = vec4<f32>(color.rgb * diffuse + distance, 1.0);
+        // add a specular component
+        var specular = pow(max(0.0, dot(reflect(light, normal), -light)), 32.0)
+        + pow(max(0.0, dot(reflect(light, normal), -light)), 10.0)
+        + pow(max(0.0, dot(reflect(light, normal), -light)), 3.0);
+        color = vec4<f32>(color.rgb * diffuse * (1.0 + specular * 1.0) + distance, 1.0);
     } else {
         color = vec4<f32>(0.0,0.0,0.0,1.0);
     }
@@ -183,31 +189,31 @@ fn compute_iteration(dc: vec2<f32>, index: u32, redraw: bool) -> MandelbrotDot {
     var iteration = 0 ;
     var reference_iteration = 0;
     var z = vec2<f32>(0.0, 0.0);
+    var dz = vec2<f32>(0.0, 0.0);
     var derivative = vec2<f32>(1.0, 0.0);
     if(redraw == false) {
-        iteration = previous_mandelbrot_texture[index].iteration - 1;
+        iteration = previous_mandelbrot_texture[index].iteration;
         reference_iteration =  previous_mandelbrot_texture[index].reference_iteration;
         z = previous_mandelbrot_texture[index].z;
+        dz = previous_mandelbrot_texture[index].dz;
         derivative = previous_mandelbrot_texture[index].derivative;
     }
     var Z = mandelbrot_reference[reference_iteration].z;
-    var dz = z - Z;
     var last_iteration = iteration;
     var distance = 0.0;
     // create an epsilon var that is smaller when the zoom is bigger
-    var epsilon = mandelbrot.epsilon;
     if(
         redraw == false
         && (
             iteration < 0
             || (dot(z, z) >= mandelbrot.mu)
-            || (dot(derivative, derivative) < epsilon)
+            || (dot(derivative, derivative) <  mandelbrot.epsilon)
         )
     ) {
-        return MandelbrotDot(z, derivative, iteration, reference_iteration);
+        return MandelbrotDot(z, dz, derivative, iteration, reference_iteration);
     }
     // calculate the iteration
-    while (iteration < i32(mandelbrot.maximum_iterations) && (iteration - last_iteration < 100)) {
+    while (iteration < i32(mandelbrot.maximum_iterations) && (iteration - last_iteration < i32(mandelbrot.maximum_iterations / 10u))) {
         derivative = 2.0 * cmul(z, derivative) + vec2<f32>(1.0, 0.0 );
         Z = mandelbrot_reference[reference_iteration].z;
         dz = 2.0 * cmul(Z, dz) + cmul(dz, dz) + dc;
@@ -220,7 +226,7 @@ fn compute_iteration(dc: vec2<f32>, index: u32, redraw: bool) -> MandelbrotDot {
             break;
         }
         // if the distance is smaller than epsilon, then we are in the mandelbrot set
-        if (dot(derivative, derivative) < epsilon) {
+        if (dot(derivative, derivative) <  mandelbrot.epsilon) {
             iteration = -1;
             break;
         }
@@ -234,7 +240,7 @@ fn compute_iteration(dc: vec2<f32>, index: u32, redraw: bool) -> MandelbrotDot {
     if(iteration >= i32(mandelbrot.maximum_iterations) ) {
         iteration = -1;
     }
-    return MandelbrotDot(z, derivative, iteration, reference_iteration);
+    return MandelbrotDot(z, dz, derivative, iteration, reference_iteration);
 }
 
 @fragment
@@ -327,7 +333,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 mandelbrot_texture[index] = compute_iteration(dc, index, true);
             }
         } else {
-            mandelbrot_texture[index] = compute_iteration(dc, index, true);
+
+           mandelbrot_texture[index] = compute_iteration(dc, index, true);
+//           mandelbrot_texture[index] = compute_iteration(dc, previous_index, false);
+//           if(
+//            mandelbrot_texture[index].iteration >= 0
+//            && mandelbrot_texture[index].iteration < previous_mandelbrot_texture[previous_index].iteration
+//            ) {
+//                mandelbrot_texture[index] = previous_mandelbrot_texture[previous_index];
+//           }
         }
     } else {
         mandelbrot_texture[index] = compute_iteration(dc, index, false);
