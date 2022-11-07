@@ -185,7 +185,7 @@ fn compute_iteration(dc: vec2<f32>, index: u32, redraw: bool) -> MandelbrotDot {
     var z = vec2<f32>(0.0, 0.0);
     var derivative = vec2<f32>(1.0, 0.0);
     if(redraw == false) {
-        iteration = previous_mandelbrot_texture[index].iteration;
+        iteration = previous_mandelbrot_texture[index].iteration - 1;
         reference_iteration =  previous_mandelbrot_texture[index].reference_iteration;
         z = previous_mandelbrot_texture[index].z;
         derivative = previous_mandelbrot_texture[index].derivative;
@@ -228,15 +228,6 @@ fn compute_iteration(dc: vec2<f32>, index: u32, redraw: bool) -> MandelbrotDot {
         if (dot_z < dot_dz || reference_iteration == i32(mandelbrot.maximum_iterations)) {
             dz = z;
             reference_iteration = 0;
-        } else {
-            // use  bivariate linear approximation
-            // https://en.wikipedia.org/wiki/Bivariate_linear_interpolation
-            // to calculate the next iteration
-            //   /* bivariate linear approximation */
-            //    T := lookup table [ exponent(|z|^2) ]
-            //    z := T.U * z + T.V * c + T.W
-            //    iterations += T.iterations
-            //    reference iterations += T.iterations
         }
         iteration += 1;
     }
